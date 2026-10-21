@@ -32,7 +32,7 @@ The discovery code is ported from the AI-DEMO2 `standalone/mcp-discovery-agent`.
 | Sanitize | `server/src/sanitize.js` | Makes server-provided text inert. |
 | Redaction | `server/src/redaction.js` | Removes secret-looking strings. |
 | Diff | `server/src/diff.js` | Scan-to-scan comparison. |
-| Health | `server/src/health.js`, `doctor.js` | `GET /api/health` (`demo-health/1`), state cached 60 s from the doctor checks. |
+| Health | `server/src/health.js`, `doctor.js` | `GET /api/health` (`demo-health/1`), state cached 60 s from the doctor checks. `npm run doctor` also checks that the server port and the five stub ports 5311-5315 are free; 5316-5319 are inside the reserved range but are not checked, because nothing binds them. |
 
 ## Statuses
 

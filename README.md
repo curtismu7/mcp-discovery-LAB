@@ -25,7 +25,7 @@ Not built: probing of remote servers, stdio servers (they are listed, never star
 
 ```bash
 npm install
-npm run doctor      # node, bind, port range, mode, free ports
+npm run doctor      # node, bind, port range, mode, free ports (server port, and demo stub ports 5311-5315)
 npm test
 npm start           # http://127.0.0.1:5310/  (MCP_DISCOVERY_PORT to change; ports 5300-5999 only)
 ```
@@ -45,9 +45,9 @@ curl -s -X POST http://127.0.0.1:5310/api/reset       # clear the inventory, res
 | Route | Does |
 | --- | --- |
 | `GET /api/health` | `demo-health/1`. `runtime` is `offline` in demo mode and `live` in live mode. |
-| `POST /api/scan` | Runs a scan, returns `mode`, `records`, `diagnostics`, `diff`, `summary`. Takes no body fields. |
+| `POST /api/scan` | Runs a scan, returns `mode`, `records`, `diagnostics`, `diff`, `summary`. Takes no body fields. Scans run one at a time; one may wait, a third request gets 429 with `Retry-After`. |
 | `GET /api/inventory` | The latest scan: `records`, `diff`, `summary`. |
-| `GET /api/inventory/:id` | One record, or 404. |
+| `GET /api/inventory/:id` | One record, 404 if unknown, 400 for a malformed id. |
 | `POST /api/reset` | Clears the inventory and the stubs' counters. |
 
 A scan in demo mode returns ten records: clean (`healthy`), poisoned (`hostile`, with findings), rug-pull (`healthy`, then `hostile` with `possibleRugPull` in the diff on the second scan), timeout (`offline`), auth (`degraded`, `auth_required`), and five that are listed but not probed (a stdio process, a stdio client-config entry, a remote client-config entry, a remote URL, and a non-MCP listener). See [docs/architecture.md](docs/architecture.md).
@@ -73,7 +73,9 @@ The server serves `web/dist` itself (`express.static`) with `Content-Security-Po
 ## Safety rules
 
 - Demo mode never touches the real host and makes no non-loopback connection. A test replaces every child-process and file-read function with one that fails, blocks non-loopback sockets, DNS and `fetch`, and runs full scans.
-- Binds `127.0.0.1` only; a non-loopback `Host` header gets 421.
+- Binds `127.0.0.1` only; a missing, malformed or non-loopback `Host` header gets 421 (DNS rebinding).
+- CSRF: a `POST` with a cross-site `Sec-Fetch-Site`, or an `Origin` that is not the same loopback origin it was sent to, gets 403, and a body must be `application/json` (415). A web page on another site cannot scan or reset. `curl` sends no `Origin`, so the examples above work.
+- Cookie headers are not checked and never read (they are scoped by host, not port, so other local apps' cookies arrive here; nothing looks at them).
 - No credential is accepted (an `Authorization`, `Proxy-Authorization` or `X-API-Key` header gets 400, and a scan takes no body fields) and none is ever sent to a server. A server that wants one is reported as `auth_required`.
 - Probes send `server/discover`, `initialize`, `notifications/initialized` and `tools/list` only. No tool is invoked.
 - Secret-looking strings are redacted; server-provided text is treated as untrusted data and made inert.

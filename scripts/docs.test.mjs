@@ -30,3 +30,13 @@ test('the docs state the default mode and the live opt-in', () => {
   assert.match(readme, /MCP_DISCOVERY_LIVE=1/);
   assert.match(readme, /demo mode/i);
 });
+
+test('the docs say plainly what is not checked: cookies, hash-uncovered fields, the doctor stub-port range', () => {
+  const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
+  assert.match(read('docs/safety.md'), /Cookie headers are not checked and never read/);
+  assert.match(read('README.md'), /Cookie headers are not checked and never read/);
+  const safety = read('docs/safety.md');
+  for (const field of ['title', 'annotations', 'outputSchema', '_meta', 'instructions', 'capabilities']) assert.ok(safety.includes(`\`${field}\``), `safety.md names the uncovered field ${field}`);
+  assert.match(read('docs/architecture.md'), /5311-5315/);
+  assert.match(read('docs/architecture.md'), /5316-5319 .*not checked/);
+});
