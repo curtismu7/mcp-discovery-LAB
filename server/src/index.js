@@ -12,5 +12,5 @@ if (!allPassed(checks)) {
 }
 const { url, runtime } = await startHttpServer();
 console.log(`[mcp-discovery] ${runtime.mode.toUpperCase()} mode at ${url} (loopback unless MCP_DISCOVERY_BIND is set)`);
-console.log(`[mcp-discovery] API: GET ${url}api/health | POST ${url}api/scan | GET ${url}api/inventory`);
+console.log(`[mcp-discovery] UI: GET ${url} (when web/dist is built) | API: GET ${url}api/health | POST ${url}api/scan | GET ${url}api/inventory`);
 if (runtime.mode === 'demo') console.log(`[mcp-discovery] stub MCP servers on 127.0.0.1:${[...runtime.stubs.ports].join(', ')}`);

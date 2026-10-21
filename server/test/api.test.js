@@ -3,7 +3,10 @@ import assert from 'node:assert/strict';
 import { createApp } from '../src/app.js';
 import { createHealth } from '../src/health.js';
 import { createRuntime } from '../src/runtime.js';
+import fs from 'node:fs';
 import net from 'node:net';
+import os from 'node:os';
+import path from 'node:path';
 import { BASES, request } from './helpers.js';
 
 async function boot(t, offset, appOptions = {}, runtime) {
@@ -166,4 +169,39 @@ test('the credential guard runs before /api/health', async (t) => {
   const res = await request(port, 'GET', '/api/health', { headers: { authorization: 'Bearer x' } });
   assert.equal(res.status, 400);
   assert.equal(res.json.error, 'credentials_not_accepted');
+});
+
+test('the built UI is served by the server itself: GET / returns it, with a same-origin CSP, and the Host guard still applies', async (t) => {
+  const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'mcpd-dist-'));
+  t.after(() => fs.rmSync(dist, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(dist, 'index.html'), '<!doctype html><title>ui</title>');
+  fs.mkdirSync(path.join(dist, 'assets'));
+  fs.writeFileSync(path.join(dist, 'assets', 'a.js'), 'console.log(1)');
+  fs.writeFileSync(path.join(dist, '.secret'), 'x');
+  const { port } = await boot(t, 240, { webDist: dist });
+  const root = await request(port, 'GET', '/');
+  assert.equal(root.status, 200);
+  assert.match(root.headers['content-type'], /text\/html/);
+  const csp = root.headers['content-security-policy'];
+  assert.match(csp, /default-src 'self'/);
+  assert.match(csp, /script-src 'self'/);
+  assert.match(csp, /connect-src 'self'/);
+  assert.doesNotMatch(csp, /unsafe-eval|script-src[^;]*unsafe-inline|https?:|\*/);
+  assert.equal(root.headers['x-content-type-options'], 'nosniff');
+  assert.equal((await request(port, 'GET', '/assets/a.js')).status, 200);
+  assert.equal((await request(port, 'GET', '/.secret')).status, 404);
+  assert.equal((await request(port, 'GET', '/', { host: 'evil.example.com' })).status, 421);
+  assert.equal((await request(port, 'GET', '/assets/a.js', { host: 'evil.example.com' })).status, 421);
+  assert.ok((await request(port, 'GET', '/%ZZ')).status < 500);
+  // the API keeps default-src 'none'
+  assert.equal((await request(port, 'GET', '/api/health')).headers['content-security-policy'], "default-src 'none'");
+  assert.equal((await request(port, 'GET', '/api/nothing')).headers['content-security-policy'], "default-src 'none'");
+  assert.equal((await request(port, 'POST', '/', { headers: { origin: 'http://evil.example' } })).status, 403);
+});
+
+test('without a built UI, GET / is a JSON 404', async (t) => {
+  const { port } = await boot(t, 260, { webDist: path.join(os.tmpdir(), 'mcpd-no-such-dist') });
+  const res = await request(port, 'GET', '/');
+  assert.equal(res.status, 404);
+  assert.equal(res.json.error, 'not_found');
 });

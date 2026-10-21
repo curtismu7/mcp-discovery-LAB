@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// Real-browser run of the web UI against a real server (scripts/serve.mjs): scan, hostile record with visible hidden
+// Real-browser run of the web UI against the real server, which serves the UI itself (server/src/index.js): scan, hostile record with visible hidden
 // characters, rug-pull on the second scan, pipeline Simulate/Reset, keyboard-only navigation, dark and light screenshots.
 //
-//   npm run build          (once; scripts/serve.mjs serves web/dist)
+//   npm run build          (once; the server serves web/dist)
 //   npm run e2e            starts the server on E2E_PORT (default 5340), drives it, stops it
 //   E2E_SHOTS=/some/dir    where screenshots go (default .data/e2e-screenshots, git-ignored)
 //
@@ -25,7 +25,7 @@ const base = `http://127.0.0.1:${port}`;
 if (!fs.existsSync(path.join(root, 'web', 'dist', 'index.html'))) { console.error('Run `npm run build` first.'); process.exit(2); }
 const env = { ...process.env, MCP_DISCOVERY_PORT: String(port) };
 delete env.MCP_DISCOVERY_LIVE; // the e2e run is always demo mode
-const server = spawn(process.execPath, ['scripts/serve.mjs'], { cwd: root, env, stdio: 'inherit' });
+const server = spawn(process.execPath, ['server/src/index.js'], { cwd: root, env, stdio: 'inherit' });
 let up = false;
 for (let i = 0; i < 60 && !up; i++) { try { up = (await fetch(`${base}/api/health`)).ok; } catch { await sleep(250); } }
 if (!up) { server.kill(); console.error('server did not start'); process.exit(2); }

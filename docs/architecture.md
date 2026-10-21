@@ -22,7 +22,8 @@ The discovery code is ported from the AI-DEMO2 `standalone/mcp-discovery-agent`.
 
 | Piece | File | Job |
 | --- | --- | --- |
-| API | `server/src/app.js` | `/api/health`, `/api/scan`, `/api/inventory`, `/api/inventory/:id`, `/api/reset`. Host-header and credential guards; JSON only. |
+| API | `server/src/app.js` | `/api/health`, `/api/scan`, `/api/inventory`, `/api/inventory/:id`, `/api/reset`. Host, Origin (CSRF) and credential guards; JSON only. |
+| Static UI | `server/src/app.js` | Serves `web/dist` when it exists (`express.static`, same-origin CSP). `/api` keeps `default-src 'none'`. Host and Origin guards cover both. |
 | Runtime | `server/src/runtime.js` | Picks demo or live, builds the host, store and probe limits, serialises scans. |
 | Safety | `server/src/safety.js` | Loopback rule, port range, live switch, Host and credential guards. See [safety.md](safety.md). |
 | Candidates | `server/src/candidates/` | Turns `ps`, `lsof`, `docker ps`, client configs and remote URLs into candidates. A stdio process whose pid owns a listener is folded into the listener. |

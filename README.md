@@ -30,7 +30,7 @@ npm test
 npm start           # http://127.0.0.1:5310/  (MCP_DISCOVERY_PORT to change; ports 5300-5999 only)
 ```
 
-With the UI: `npm run build && npm run start:ui` serves `web/dist` and the API together on `http://127.0.0.1:5310/`. (`npm start` serves the API only: `server/` does not serve static files yet.)
+With the UI: `npm run build && npm start` serves `web/dist` and the API together on `http://127.0.0.1:5310/`. Without `web/dist`, `GET /` is a JSON 404 and the API still works.
 
 ```bash
 curl -s http://127.0.0.1:5310/api/health
@@ -64,12 +64,11 @@ A scan in demo mode returns ten records: clean (`healthy`), poisoned (`hostile`,
 
 ```bash
 npm run dev          # Vite on http://127.0.0.1:5330 (VITE_PORT), proxies /api to the server on 5310; start the server with npm start
-npm run build        # web/dist
-npm run start:ui     # scripts/serve.mjs: web/dist plus the unchanged API on one port
+npm run build        # web/dist, which `npm start` serves
 npm run e2e          # real headless Chromium run (Playwright), screenshots to .data/e2e-screenshots or E2E_SHOTS
 ```
 
-`scripts/serve.mjs` exists because `server/src/app.js` serves only `/api` (and sends `Content-Security-Policy: default-src 'none'`). It puts static files in front of the unchanged app with its own CSP. A server change that serves `web/dist` itself would make it unnecessary.
+The server serves `web/dist` itself (`express.static`) with `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; ...`; `/api` responses keep `default-src 'none'`. The Host guard and the Origin guard apply to static files too. The Docker image does not include `web/dist` (API only).
 
 ## Safety rules
 
@@ -104,7 +103,7 @@ Demo mode only, Node 22, non-root, read-only filesystem, all capabilities droppe
 server/src/      app, runtime, safety, probe, toolcheck, candidates/, demo/ (stubs, fixtures), live.js
 server/test/     node:test suites (one netguard helper blocks non-loopback network)
 web/             React UI (src/components, src/lib, src/test), vite.config.js
-scripts/         doctor.mjs, serve.mjs, e2e.mjs, compose.test.mjs, docs.test.mjs
+scripts/         doctor.mjs, e2e.mjs, compose.test.mjs, docs.test.mjs
 docs/            safety.md, architecture.md
 ```
 
