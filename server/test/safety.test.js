@@ -11,7 +11,7 @@ import { createRuntime } from '../src/runtime.js';
 import { allPassed, runChecks } from '../src/doctor.js';
 import { assertBindAllowed, bindHost, hostnameOf, isLoopbackHost, liveEnabled, portInRange } from '../src/safety.js';
 import { guardNetwork } from './netguard.js';
-import { BASES, request } from './helpers.js';
+import { freeBase, request } from './helpers.js';
 
 const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../src');
 
@@ -44,8 +44,9 @@ test('live mode needs exactly MCP_DISCOVERY_LIVE=1; other values fail the doctor
 });
 
 test('a started server is actually listening on loopback only', async (t) => {
-  const port = BASES.safety + 9;
-  const srv = await startHttpServer({ port, host: '127.0.0.1', env: {}, runtime: await createRuntime({ env: {}, stubBase: BASES.safety }) });
+  const base = await freeBase('safety', 6);
+  const port = base + 5;
+  const srv = await startHttpServer({ port, host: '127.0.0.1', env: {}, runtime: await createRuntime({ env: {}, stubBase: base }) });
   t.after(() => srv.close());
   assert.equal(srv.port, port);
   assert.equal((await request(port, 'GET', '/api/health')).status, 200);
@@ -64,12 +65,12 @@ test('the guard itself works', async () => {
   } finally { g.restore(); }
   assert.deepEqual(g.attempts, ['fetch:203.0.113.9', 'fetch:mcp.example.com']);
   const g2 = guardNetwork();
-  try { assert.throws(() => net.connect({ host: '203.0.113.9', port: BASES.safety + 59 }), /network blocked/); } finally { g2.restore(); }
+  try { assert.throws(() => net.connect({ host: '203.0.113.9', port: 5859 }), /network blocked/); } finally { g2.restore(); }
   assert.deepEqual(g2.attempts, ['socket:203.0.113.9']);
 });
 
 test('default mode: a full scan makes zero non-loopback connections, only ever touches stub ports, and never reads the real host', async (t) => {
-  const rt = await createRuntime({ env: {}, stubBase: BASES.safety + 20 });
+  const rt = await createRuntime({ env: {}, stubBase: await freeBase('safety', 6) });
   const g = guardNetwork();
   const touched = [];
   const patched = [];
@@ -103,10 +104,11 @@ test('default mode: a full scan makes zero non-loopback connections, only ever t
 
 test('the same holds through the HTTP API: POST /api/scan under the guard', async (t) => {
   const g = guardNetwork();
-  const port = BASES.safety + 49;
+  const base = await freeBase('safety', 6);
+  const port = base + 5;
   let srv;
   try {
-    srv = await startHttpServer({ port, host: '127.0.0.1', env: {}, runtime: await createRuntime({ env: {}, stubBase: BASES.safety + 40 }) });
+    srv = await startHttpServer({ port, host: '127.0.0.1', env: {}, runtime: await createRuntime({ env: {}, stubBase: base }) });
     assert.equal((await request(port, 'POST', '/api/scan')).status, 200);
   } finally { await srv?.close(); g.restore(); }
   assert.deepEqual(g.attempts, []);

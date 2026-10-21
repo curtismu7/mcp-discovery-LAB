@@ -1,13 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { BASES } from './helpers.js';
+import { freeBase } from './helpers.js';
 import { probeHttpCandidate, probeCandidate, classifyProbeError } from '../src/probe.js';
 
-let nextPort = BASES.probe;
-function fixtureServer(handler) {
+async function fixtureServer(handler) {
   const server = http.createServer(handler);
-  const port = nextPort++;
+  const port = await freeBase('probe', 1);
   return new Promise((resolve) => server.listen(port, '127.0.0.1', () => resolve({
     server,
     url: `http://127.0.0.1:${port}/mcp`,
@@ -84,7 +83,8 @@ test('marks a healthy endpoint hostile when metadata findings are detected', asy
 });
 
 test('does not send credentials and leaves stdio candidates unprobed', async () => {
-  await assert.rejects(() => probeHttpCandidate({ endpoint: 'http://127.0.0.1:5429/mcp' }, { headers: { Authorization: 'secret' } }), /ECONNREFUSED|fetch failed/);
+  const closed = await freeBase('probe', 1);
+  await assert.rejects(() => probeHttpCandidate({ endpoint: `http://127.0.0.1:${closed}/mcp` }, { headers: { Authorization: 'secret' } }), /ECONNREFUSED|fetch failed/);
   const result = await probeCandidate({ transport: 'stdio', source: 'host-process', endpoint: null });
   assert.equal(result.status, 'candidate');
   assert.equal(result.probe.errorCode, 'stdio_unprobed');

@@ -7,12 +7,13 @@ import fs from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
-import { BASES, request } from './helpers.js';
+import { freeBase, request } from './helpers.js';
 
-async function boot(t, offset, appOptions = {}, runtime) {
-  const rt = runtime || await createRuntime({ env: {}, stubBase: BASES.api + offset });
+async function boot(t, appOptions = {}, runtime) {
+  const base = await freeBase('api', 6);
+  const rt = runtime || await createRuntime({ env: {}, stubBase: base });
   const health = createHealth();
-  const port = BASES.api + offset + 9;
+  const port = base + 5;
   const server = createApp({ runtime: rt, health, webDist: null, ...appOptions }).listen(port, '127.0.0.1');
   await new Promise((r) => server.once('listening', r));
   t.after(async () => { health.stop(); server.closeAllConnections(); await new Promise((r) => server.close(r)); await rt.close(); });
@@ -20,7 +21,7 @@ async function boot(t, offset, appOptions = {}, runtime) {
 }
 
 test('GET /api/health is demo-health/1, no-store, offline in demo mode', async (t) => {
-  const { port } = await boot(t, 0);
+  const { port } = await boot(t);
   const res = await request(port, 'GET', '/api/health');
   assert.equal(res.status, 200);
   assert.match(res.headers['content-type'], /application\/json/);
@@ -37,7 +38,7 @@ test('GET /api/health is demo-health/1, no-store, offline in demo mode', async (
 });
 
 test('scan, inventory, record, diff, reset round trip', async (t) => {
-  const { port } = await boot(t, 20);
+  const { port } = await boot(t);
   assert.deepEqual((await request(port, 'GET', '/api/inventory')).json.records, []);
   const s1 = await request(port, 'POST', '/api/scan');
   assert.equal(s1.status, 200);
@@ -60,7 +61,7 @@ test('scan, inventory, record, diff, reset round trip', async (t) => {
 });
 
 test('a non-loopback Host header is refused', async (t) => {
-  const { port } = await boot(t, 40);
+  const { port } = await boot(t);
   for (const host of ['evil.example.com', 'evil.example.com:5310', '10.0.0.5:5310', '127.0.0.1.evil.example:5310']) {
     assert.equal((await request(port, 'GET', '/api/health', { host })).status, 421, host);
   }
@@ -68,7 +69,7 @@ test('a non-loopback Host header is refused', async (t) => {
 });
 
 test('credentials are refused: headers, and any body field on scan', async (t) => {
-  const { port, rt } = await boot(t, 60);
+  const { port, rt } = await boot(t);
   for (const headers of [{ authorization: 'Bearer x' }, { 'proxy-authorization': 'Basic x' }, { 'x-api-key': 'k' }]) {
     const res = await request(port, 'POST', '/api/scan', { headers });
     assert.equal(res.status, 400);
@@ -83,7 +84,7 @@ test('credentials are refused: headers, and any body field on scan', async (t) =
 });
 
 test('responses are JSON with nosniff and a locked-down CSP; unknown routes are 404 JSON', async (t) => {
-  const { port } = await boot(t, 80);
+  const { port } = await boot(t);
   const res = await request(port, 'GET', '/api/nothing');
   assert.equal(res.status, 404);
   assert.equal(res.headers['x-content-type-options'], 'nosniff');
@@ -93,7 +94,7 @@ test('responses are JSON with nosniff and a locked-down CSP; unknown routes are 
 });
 
 test('CSRF: a cross-origin or cross-site POST is refused and changes nothing', async (t) => {
-  const { port, rt } = await boot(t, 100);
+  const { port, rt } = await boot(t);
   const evil = [
     { origin: 'http://evil.example', 'sec-fetch-site': 'cross-site', 'content-type': 'text/plain' },
     { origin: 'http://evil.example' },
@@ -120,20 +121,20 @@ test('CSRF: a cross-origin or cross-site POST is refused and changes nothing', a
 });
 
 test('a request body must be application/json', async (t) => {
-  const { port } = await boot(t, 120);
+  const { port } = await boot(t);
   const res = await request(port, 'POST', '/api/scan', { headers: { 'content-type': 'text/plain' }, body: '{}' });
   assert.equal(res.status, 415);
   assert.equal((await request(port, 'POST', '/api/scan', { headers: { 'content-type': 'application/json; charset=utf-8' }, body: '{}' })).status, 200);
 });
 
 test('POST /api/reset with a body is refused', async (t) => {
-  const { port } = await boot(t, 140);
+  const { port } = await boot(t);
   assert.equal((await request(port, 'POST', '/api/reset', { body: { all: true } })).status, 400);
   assert.equal((await request(port, 'POST', '/api/reset', { body: '[1]' })).status, 400);
 });
 
 test('a missing Host header (HTTP/1.0) and malformed loopback Hosts are refused', async (t) => {
-  const { port } = await boot(t, 160);
+  const { port } = await boot(t);
   const raw = await new Promise((resolve) => {
     const s = net.connect(port, '127.0.0.1', () => s.write('GET /api/health HTTP/1.0\r\n\r\n'));
     let out = ''; s.on('data', (c) => { out += c; }); s.on('close', () => resolve(out));
@@ -145,7 +146,7 @@ test('a missing Host header (HTTP/1.0) and malformed loopback Hosts are refused'
 });
 
 test('GET /api/inventory/%ZZ is a 400, not a 500', async (t) => {
-  const { port } = await boot(t, 180);
+  const { port } = await boot(t);
   const res = await request(port, 'GET', '/api/inventory/%ZZ');
   assert.equal(res.status, 400);
   assert.equal(res.json.error, 'bad_request');
@@ -153,7 +154,7 @@ test('GET /api/inventory/%ZZ is a 400, not a 500', async (t) => {
 
 test('a 500 never leaks err.message or a stack', async (t) => {
   const boom = { mode: 'demo', store: { snapshot: async () => { throw new Error('SECRET-INTERNAL /Users/x/file.js:12'); } }, scan: async () => { throw new Error('SECRET-INTERNAL'); }, reset: async () => {}, close: async () => {} };
-  const { port } = await boot(t, 200, {}, boom);
+  const { port } = await boot(t, {}, boom);
   const realError = console.error; console.error = () => {};
   t.after(() => { console.error = realError; });
   for (const [m, p] of [['GET', '/api/inventory'], ['POST', '/api/scan']]) {
@@ -165,7 +166,7 @@ test('a 500 never leaks err.message or a stack', async (t) => {
 });
 
 test('the credential guard runs before /api/health', async (t) => {
-  const { port } = await boot(t, 220);
+  const { port } = await boot(t);
   const res = await request(port, 'GET', '/api/health', { headers: { authorization: 'Bearer x' } });
   assert.equal(res.status, 400);
   assert.equal(res.json.error, 'credentials_not_accepted');
@@ -178,7 +179,7 @@ test('the built UI is served by the server itself: GET / returns it, with a same
   fs.mkdirSync(path.join(dist, 'assets'));
   fs.writeFileSync(path.join(dist, 'assets', 'a.js'), 'console.log(1)');
   fs.writeFileSync(path.join(dist, '.secret'), 'x');
-  const { port } = await boot(t, 240, { webDist: dist });
+  const { port } = await boot(t, { webDist: dist });
   const root = await request(port, 'GET', '/');
   assert.equal(root.status, 200);
   assert.match(root.headers['content-type'], /text\/html/);
@@ -200,14 +201,14 @@ test('the built UI is served by the server itself: GET / returns it, with a same
 });
 
 test('without a built UI, GET / is a JSON 404', async (t) => {
-  const { port } = await boot(t, 260, { webDist: path.join(os.tmpdir(), 'mcpd-no-such-dist') });
+  const { port } = await boot(t, { webDist: path.join(os.tmpdir(), 'mcpd-no-such-dist') });
   const res = await request(port, 'GET', '/');
   assert.equal(res.status, 404);
   assert.equal(res.json.error, 'not_found');
 });
 
 test('a third concurrent scan gets 429 with Retry-After', async (t) => {
-  const { port } = await boot(t, 280);
+  const { port } = await boot(t);
   const results = await Promise.all([request(port, 'POST', '/api/scan'), request(port, 'POST', '/api/scan'), request(port, 'POST', '/api/scan')]);
   assert.deepEqual(results.map((r) => r.status).sort(), [200, 200, 429]);
   const refused = results.find((r) => r.status === 429);

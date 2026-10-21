@@ -2,13 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
 import { createHealth } from '../src/health.js';
-import { BASES, request } from './helpers.js';
+import { freeBase, request } from './helpers.js';
 
-let next = BASES.app;
 async function serve(t, health) {
   const app = express();
   app.use('/api/health', health.router);
-  const port = next++;
+  const port = await freeBase('app', 1);
   const s = app.listen(port, '127.0.0.1');
   await new Promise((r) => s.once('listening', r));
   t.after(() => { health.stop(); s.closeAllConnections(); s.close(); });
