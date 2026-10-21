@@ -68,7 +68,7 @@ npm run build        # web/dist, which `npm start` serves
 npm run e2e          # real headless Chromium run (Playwright), screenshots to .data/e2e-screenshots or E2E_SHOTS
 ```
 
-The server serves `web/dist` itself (`express.static`) with `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; ...`; `/api` responses keep `default-src 'none'`. The Host guard and the Origin guard apply to static files too. The Docker image does not include `web/dist` (API only).
+The server serves `web/dist` itself (`express.static`) with `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; ...`; `/api` responses keep `default-src 'none'`. The Host guard and the Origin guard apply to static files too. The Docker image builds `web/dist` in a first stage and ships it, so a container serves the UI and the API.
 
 ## Safety rules
 
@@ -97,7 +97,22 @@ docker compose up --build -d      # http://127.0.0.1:5310 ; HOST_PORT=5311 to ch
 docker compose down
 ```
 
-Demo mode only, Node 22, non-root, read-only filesystem, all capabilities dropped, no host mounts. The server binds `0.0.0.0` inside the container (the image sets `MCP_DISCOVERY_BIND`, the explicit opt-in) and compose publishes the port as `127.0.0.1:PORT:5310`; a test pins that. Do not widen it.
+Multi-stage build (Vite build, then a runtime with production dependencies and `web/dist`). `GET /` returns the UI and `/api/health` is the healthcheck. Demo mode only, Node 22, non-root, read-only filesystem, all capabilities dropped, no host mounts. The server binds `0.0.0.0` inside the container (the image sets `MCP_DISCOVERY_BIND`, the explicit opt-in) and compose publishes the port as `127.0.0.1:PORT:5310`; a test pins that. Do not widen it.
+
+## Demo shelf
+
+[docs/shelf-entry.json](docs/shelf-entry.json) is a registry entry for the SE shelf (`demo-shelf`), catalog id D5 (kind Tester), url `http://localhost:5310`, health `/api/health` (`demo-health/1`). Do not edit the shelf repo: copy the entry into the shelf's git-ignored `.data/demos.local.json` and set `composeFile` to this checkout's absolute path. The shelf's own registry rules are copied into `scripts/lib/shelf-registry-rules.mjs` (not imported) and `npm test` validates the entry against them. The entry was also run once through the shelf's real `validateDemos`, and the pack through the Learning Hub's `validate-pack`; both passed. It was not loaded into a running shelf.
+
+## Learning Hub content pack
+
+`content-pack.json` (format `demo-content-pack/1`, schema copied to `docs/content-pack.schema.json`) holds the glossary (`content/terms.json`: discovery, demo mode, read-only probe, tool poisoning, tool metadata hash, rug pull, redaction, inert text), two cards and five stories (`content/stories.json`, same text as the UI story strip). `sources` is empty: no public documentation URL was verified.
+
+```bash
+npm run content-pack      # regenerate and validate with ajv
+node scripts/validate-content-pack.mjs [file]
+```
+
+`npm test` fails if the committed pack is stale or does not validate.
 
 ## Layout
 
@@ -105,7 +120,8 @@ Demo mode only, Node 22, non-root, read-only filesystem, all capabilities droppe
 server/src/      app, runtime, safety, probe, toolcheck, candidates/, demo/ (stubs, fixtures), live.js
 server/test/     node:test suites (one netguard helper blocks non-loopback network)
 web/             React UI (src/components, src/lib, src/test), vite.config.js
-scripts/         doctor.mjs, e2e.mjs, compose.test.mjs, docs.test.mjs
+scripts/         doctor.mjs, e2e.mjs, build/validate-content-pack.mjs, *.test.mjs, lib/ (shelf rules copy)
+content/         terms.json, stories.json (source of content-pack.json)
 docs/            safety.md, architecture.md
 ```
 
