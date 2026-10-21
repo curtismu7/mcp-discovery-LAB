@@ -10,9 +10,9 @@ const SOURCES = ["host-process", "listener", "compose-service", "client-config",
 const START = [
   ...SOURCES.map((s, i) => ({ id: s, position: { x: 0, y: i * 95 }, data: { title: SOURCE_LABEL[s], sub: "source", kind: "source" } })),
   { id: "candidates", position: { x: 310, y: 190 }, data: { title: "Candidates", sub: "merged and redacted" } },
-  { id: "probe", position: { x: 590, y: 190 }, data: { title: "Probe", sub: "loopback only, tools/list" } },
-  { id: "inventory", position: { x: 880, y: 70 }, data: { title: "Inventory", sub: "status, hash, diff" } },
-  { id: "findings", position: { x: 880, y: 310 }, data: { title: "Findings", sub: "hidden text, instructions, broad schemas" } },
+  { id: "probe", position: { x: 600, y: 190 }, data: { title: "Probe", sub: "loopback only, tools/list" } },
+  { id: "inventory", position: { x: 990, y: 60 }, data: { title: "Inventory", sub: "status, hash, diff" } },
+  { id: "findings", position: { x: 990, y: 320 }, data: { title: "Findings", sub: "hidden text, instructions, broad schemas" } },
 ];
 const E = (id, source, target, label) => ({ id, source, target, label });
 const EDGES = [

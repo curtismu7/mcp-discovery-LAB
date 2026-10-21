@@ -26,8 +26,8 @@ export default function Inventory({ records, onOpen, openId }) {
         <caption className="sr-only">Discovered MCP servers</caption>
         <thead>
           <tr>
-            <th scope="col">Server</th><th scope="col">Status</th><th scope="col">Sources</th>
-            <th scope="col">Confidence</th><th scope="col">Transport</th><th scope="col">Tools</th><th scope="col">Findings</th>
+            <th scope="col">Server</th><th scope="col">Status</th><th scope="col" className="opt">Sources</th>
+            <th scope="col" className="opt">Confidence</th><th scope="col" className="opt">Transport</th><th scope="col">Tools</th><th scope="col">Findings</th>
           </tr>
         </thead>
         <tbody>
@@ -42,9 +42,9 @@ export default function Inventory({ records, onOpen, openId }) {
                   {r.endpoint && <div className="small muted mono"><Untrusted text={r.endpoint} plain /></div>}
                 </th>
                 <td><StatusBadge status={r.status} /></td>
-                <td>{r.sources.map(label).join(", ")}</td>
-                <td>{r.confidence}</td>
-                <td>{r.transport}</td>
+                <td className="opt">{r.sources.map(label).join(", ")}</td>
+                <td className="opt">{r.confidence}</td>
+                <td className="opt">{r.transport}</td>
                 <td>
                   {r.tools.length ? (
                     <ul className="plain mono small">{r.tools.map((t, i) => <li key={i}><Untrusted text={t.name} plain /></li>)}</ul>

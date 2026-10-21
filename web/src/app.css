@@ -74,6 +74,8 @@ table.inv tbody th { font-weight: 400; }
 
 .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(20rem, 28rem); gap: 1rem; align-items: start; }
 @media (max-width: 62rem) { .split { grid-template-columns: 1fr; } }
+/* With the drawer open the table has about half the width: drop the three least important columns (the drawer shows them) so Findings is never cut off. */
+@media (min-width: 62.01rem) { .split table.inv { min-width: 0; } .split table.inv .opt { display: none; } }
 .drawer { border: 2px solid var(--accent); border-radius: 10px; background: var(--card); padding: 0.75rem 1rem 1rem; position: sticky; top: 4rem; max-height: calc(100vh - 5rem); overflow: auto; }
 .drawer-head { display: flex; justify-content: space-between; gap: 0.5rem; align-items: start; }
 .drawer-head h2 { margin: 0; overflow-wrap: anywhere; } .drawer-head h2:focus { outline: none; text-decoration: underline; }

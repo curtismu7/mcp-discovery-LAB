@@ -81,6 +81,7 @@ try {
   check((await dlg.locator('mark').count()) > 0, 'instruction-like text is marked');
   check((await dlg.innerText()).includes('<IMPORTANT>'), 'markup is shown as text');
   check((await dlg.locator('important').count()) === 0, 'no element was created from markup');
+  check(await page.evaluate(() => { const w = document.querySelector('.table-wrap'); const th = [...w.querySelectorAll('th')].find((x) => x.textContent === 'Findings'); const r = th.getBoundingClientRect(); const wr = w.getBoundingClientRect(); return w.scrollWidth <= w.clientWidth + 1 && r.left >= wr.left && r.right <= wr.right + 1; }), 'with the drawer open the Findings column is fully visible');
   await shot('1-scan-drawer-light');
   await page.keyboard.press('Escape');
   check((await page.getByRole('dialog').count()) === 0 && (await active()).includes('node 5312'), 'Escape closes the drawer and returns focus to the row');
@@ -102,6 +103,12 @@ try {
   await page.getByRole('button', { name: 'Pipeline' }).click();
   await page.locator('.react-flow__node').first().waitFor();
   check((await page.locator('.react-flow__node').count()) === 9, 'nine diagram boxes');
+  check(await page.evaluate(() => {
+    const boxes = [...document.querySelectorAll('.react-flow__edge-textbg')].map((e) => e.getBoundingClientRect());
+    const nodes = [...document.querySelectorAll('.react-flow__node')].map((e) => e.getBoundingClientRect());
+    const hit = (a, b) => a.left < b.right + 6 && b.left < a.right + 6 && a.top < b.bottom + 6 && b.top < a.bottom + 6;
+    return boxes.length === 3 && boxes.every((b, i) => boxes.every((c, j) => i === j || !hit(b, c)) && nodes.every((n) => !hit(b, n)));
+  }), 'edge labels overlap neither each other nor a box');
   const node = page.locator('.react-flow__node', { hasText: 'Probe' }).first();
   const before = await node.boundingBox();
   await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
