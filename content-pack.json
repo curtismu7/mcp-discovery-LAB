@@ -1,0 +1,148 @@
+{
+  "schema": "demo-content-pack/1",
+  "id": "mcp-discovery",
+  "title": "MCP Discovery",
+  "version": "0.1.0",
+  "demo": {
+    "id": "mcp-discovery",
+    "name": "MCP Discovery",
+    "catalog": "D5",
+    "baseUrl": "http://localhost:5310",
+    "doctor": "/api/health",
+    "tags": [
+      "mcp",
+      "discovery",
+      "rug-pull",
+      "read-only"
+    ]
+  },
+  "glossary": [
+    {
+      "id": "demo-mode",
+      "term": "Demo mode",
+      "definition": "The default. A scan reads fixtures and five in-process stub MCP servers on loopback ports 5311-5315; the real machine is never read. Scanning the host is a separate opt-in (MCP_DISCOVERY_LIVE=1).",
+      "aliases": [
+        "offline mode"
+      ]
+    },
+    {
+      "id": "inert-text",
+      "term": "Inert text",
+      "definition": "Every string a server supplies (tool names and descriptions, server info, instructions) is treated as data: hidden characters are shown as [U+XXXX], sizes are bounded, the UI renders it as a text node and never as HTML, and nothing in it is evaluated or followed."
+    },
+    {
+      "id": "mcp-discovery",
+      "term": "MCP discovery",
+      "definition": "Finding the MCP servers that exist on a machine (processes, listeners, Compose services, client configs, remote URLs), merging the findings into one inventory, and probing the reachable ones for their tool metadata.",
+      "aliases": [
+        "MCP server discovery"
+      ]
+    },
+    {
+      "id": "read-only-probe",
+      "term": "Read-only probe",
+      "definition": "A probe sends server/discover, initialize, notifications/initialized and tools/list to a loopback endpoint and nothing else. No tool is invoked and no credential is accepted or sent; a server that wants one is reported as auth_required."
+    },
+    {
+      "id": "redaction",
+      "term": "Redaction",
+      "definition": "Secret-looking strings (secret query parameters, URL userinfo, bearer tokens, JWTs, AWS key ids, PEM blocks, cookie and authorization values) are replaced before a record is stored or shown, and fields with secret-like names are replaced by [REDACTED]. It is pattern based, so an unusual shape in an innocently named field is not removed."
+    },
+    {
+      "id": "rug-pull",
+      "term": "Rug pull",
+      "definition": "A tool server that serves clean tool metadata while it is being reviewed and different metadata later, under the same server. Nothing in MCP tells the client. Here it is seen as a changed metadata hash between two scans, flagged POSSIBLE RUG-PULL.",
+      "aliases": [
+        "tool swap"
+      ]
+    },
+    {
+      "id": "tool-metadata-hash",
+      "term": "Tool metadata hash",
+      "definition": "A hash of the canonical form of each tool's name, description and inputSchema (key order and tool order ignored). A different hash for the same server on a later scan means the metadata changed. Fields outside those three (title, annotations, outputSchema, _meta, server info, instructions) are not covered.",
+      "aliases": [
+        "metadata hash",
+        "pinning hash"
+      ]
+    },
+    {
+      "id": "tool-poisoning",
+      "term": "Tool poisoning",
+      "definition": "Putting instructions for the model in a tool's description or schema, where the user rarely looks but the agent reads it. The checker flags hidden characters, instruction-like text and overly broad schemas; a clean result means none of that matched, not that the server is safe.",
+      "aliases": [
+        "hostile tool description"
+      ]
+    }
+  ],
+  "sources": [],
+  "cards": [
+    {
+      "id": "inventory",
+      "label": "Inventory and scan diff",
+      "description": "Scan the demo fixtures and stubs, open a record, and see the second scan flag the rug-pull stub.",
+      "group": "try-it",
+      "terms": [
+        "mcp-discovery",
+        "rug-pull",
+        "tool-metadata-hash",
+        "tool-poisoning",
+        "redaction",
+        "inert-text"
+      ],
+      "story": "S05",
+      "action": {
+        "type": "route",
+        "href": "/"
+      }
+    },
+    {
+      "id": "pipeline",
+      "label": "Discovery pipeline",
+      "description": "Sources, candidates, probe, inventory and findings as a movable diagram with Simulate.",
+      "group": "concept",
+      "terms": [
+        "demo-mode",
+        "read-only-probe"
+      ],
+      "story": "S01",
+      "action": {
+        "type": "route",
+        "href": "/"
+      }
+    }
+  ],
+  "diagrams": [
+    {
+      "id": "pipeline",
+      "label": "Discovery pipeline",
+      "href": "/"
+    }
+  ],
+  "stories": [
+    {
+      "id": "S01",
+      "title": "Find",
+      "say": "Five sources are read: processes, listeners, Compose services, client configs and remote URLs. In demo mode they are fixtures, so nothing on this machine is read."
+    },
+    {
+      "id": "S02",
+      "title": "Merge",
+      "say": "Findings become candidates. A stdio process that owns a listener folds into it, and secret-looking strings are removed before anything is probed."
+    },
+    {
+      "id": "S03",
+      "title": "Probe",
+      "say": "Only loopback endpoints are asked, with server/discover, initialize and tools/list. No tool is ever called and no credential is sent."
+    },
+    {
+      "id": "S04",
+      "title": "Check",
+      "say": "Each server's tool metadata is hashed and checked for hidden characters, instruction-like text and broad schemas. That decides the status."
+    },
+    {
+      "id": "S05",
+      "title": "Compare",
+      "say": "Each scan is compared with the last. The same server with a different metadata hash is a possible rug-pull: the tools changed after they were first seen."
+    }
+  ]
+}

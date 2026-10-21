@@ -1,0 +1,7 @@
+[
+  { "id": "S01", "title": "Find", "say": "Five sources are read: processes, listeners, Compose services, client configs and remote URLs. In demo mode they are fixtures, so nothing on this machine is read." },
+  { "id": "S02", "title": "Merge", "say": "Findings become candidates. A stdio process that owns a listener folds into it, and secret-looking strings are removed before anything is probed." },
+  { "id": "S03", "title": "Probe", "say": "Only loopback endpoints are asked, with server/discover, initialize and tools/list. No tool is ever called and no credential is sent." },
+  { "id": "S04", "title": "Check", "say": "Each server's tool metadata is hashed and checked for hidden characters, instruction-like text and broad schemas. That decides the status." },
+  { "id": "S05", "title": "Compare", "say": "Each scan is compared with the last. The same server with a different metadata hash is a possible rug-pull: the tools changed after they were first seen." }
+]
