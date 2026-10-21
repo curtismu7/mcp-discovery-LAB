@@ -1,0 +1,16 @@
+{
+  "demos": [
+    {
+      "id": "mcp-discovery",
+      "name": "MCP Discovery",
+      "catalogId": "D5",
+      "kind": "Tester",
+      "description": "Read-only MCP discovery: finds MCP servers, probes their tool metadata, flags poisoned or changed metadata (possible rug-pull). Demo mode scans fixtures and stubs only.",
+      "url": "http://localhost:5310",
+      "healthPath": "/api/health",
+      "composeFile": "/Users/cmuir/Development/mcp-discovery/docker-compose.yml",
+      "composeOverlays": [],
+      "notes": "Host-run: npm install && npm run build && npm start (port 5310; npm run doctor checks it). Or: docker compose up --build -d (publishes 127.0.0.1:5310 only; HOST_PORT changes it, and the shelf's Start button does not set HOST_PORT). Edit composeFile to this checkout's absolute path."
+    }
+  ]
+}
