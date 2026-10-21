@@ -6,15 +6,23 @@
   "description": "Read-only MCP discovery demo: finds MCP servers, probes their tool metadata, flags poisoned or changed metadata. Demo mode by default, nothing real is touched.",
   "license": "MIT",
   "workspaces": [
-    "server"
+    "server",
+    "web"
   ],
   "engines": {
     "node": ">=20"
   },
   "scripts": {
     "start": "npm start -w server",
-    "test": "npm test -w server && node --test scripts/compose.test.mjs scripts/docs.test.mjs",
+    "start:ui": "node scripts/serve.mjs",
+    "dev": "npm run dev -w web",
+    "test": "npm test -w server && npm test -w web && node --test scripts/compose.test.mjs scripts/docs.test.mjs",
+    "build": "npm run build -w web",
+    "e2e": "node scripts/e2e.mjs",
     "doctor": "node scripts/doctor.mjs",
     "prepare": "git config core.hooksPath .githooks || true"
+  },
+  "devDependencies": {
+    "playwright": "^1.64.1"
   }
 }
