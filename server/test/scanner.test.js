@@ -94,3 +94,30 @@ test('server-provided text is inert in records: hidden characters are shown, not
   assert.ok(!/[​‮]/.test(JSON.stringify(poisoned)));
   assert.match(poisoned.tools[0].description, /no\[U\+200B\]tes/);
 });
+
+test('secret query parameters are removed from the URL before it is probed, and from the id', async (t) => {
+  const { default: http } = await import('node:http');
+  const { runScan } = await import('../src/scanner.js');
+  const urls = [];
+  const port = BASES.scanner + 90;
+  const server = http.createServer((req, res) => { urls.push(req.url); req.resume(); res.writeHead(404); res.end(); });
+  await new Promise((r) => server.listen(port, '127.0.0.1', r));
+  t.after(() => server.close());
+  const host = {
+    execFile: async () => '', clientConfigPaths: ['c.json'], remoteUrls: [], compose: {},
+    fsImpl: { readFile: async () => JSON.stringify({ mcpServers: { x: { url: `http://127.0.0.1:${port}/mcp?api_key=SECRETVALUE1&token=SECRETVALUE2&region=eu` } } }) },
+  };
+  const { records } = await runScan({ host, probeOptions: { allowedPorts: new Set([port]), timeoutMs: 500 } });
+  assert.ok(urls.length > 0, 'the server was probed');
+  for (const u of urls) { assert.doesNotMatch(u, /SECRETVALUE|api_key|token/); assert.match(u, /region=eu/); }
+  assert.doesNotMatch(JSON.stringify(records), /SECRETVALUE/);
+});
+
+test('scans are serialised: two concurrent scans run one after the other', async (t) => {
+  const rt = await createRuntime({ env: {}, stubBase: BASES.scanner + 60 });
+  t.after(() => rt.close());
+  const [a, b] = await Promise.all([rt.scan(), rt.scan()]);
+  assert.equal(a.diff.firstScan, true);
+  assert.equal(b.diff.firstScan, false, 'the second scan saw the first scan as its baseline');
+  assert.ok(a.completedAt <= b.startedAt, 'the second began after the first finished');
+});

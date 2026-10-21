@@ -61,3 +61,11 @@ test('redaction removes bearer tokens, env-style secrets, token-shaped strings a
   assert.equal(r.process.env, undefined);
   assert.equal(JSON.stringify(redactRecord(r)), JSON.stringify(r), 'redaction is idempotent');
 });
+
+test('private ranges: 172.16.0.0/12 and IPv4-mapped IPv6 are private remote targets; 172.15 and 172.32 are not', () => {
+  const reason = (host) => evaluateTarget(`http://${host}/mcp`, { scope: 'remote' }).reason;
+  for (const h of ['172.16.0.1', '172.20.5.5', '172.31.255.255', '[::ffff:10.0.0.1]', '[::ffff:127.0.0.1]', '[::ffff:8.8.8.8]', '[fe80::1]', '[fc00::1]', '[fd12::1]', '[::]', '10.1.2.3', '192.168.0.1', '169.254.169.254', '0.0.0.0']) {
+    assert.equal(reason(h), 'private_remote_target', h);
+  }
+  for (const h of ['172.15.0.1', '172.32.0.1', '8.8.8.8']) assert.equal(reason(h), null, h);
+});
