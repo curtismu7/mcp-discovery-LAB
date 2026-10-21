@@ -69,3 +69,35 @@ test('private ranges: 172.16.0.0/12 and IPv4-mapped IPv6 are private remote targ
   }
   for (const h of ['172.15.0.1', '172.32.0.1', '8.8.8.8']) assert.equal(reason(h), null, h);
 });
+
+test('redaction: field names, headers at any depth and case, and more secret shapes', () => {
+  const jwt = ['eyJhbGciOiJIUzI1NiJ9', 'eyJzdWIiOiIxMjM0NTY3ODkwIn0', 'dBjftJeZ4CVPmB92K27uhbUJU1p1r'].join('.'); // assembled so no secret scanner flags the test
+  const akia = `${'AKIA'}${'IOSFODNN7EXAMPLE'}`;
+  const pem = ['-----BEGIN PRIVATE', 'KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASC\n-----END PRIVATE', 'KEY-----'].join(' ');
+  const r = redactRecord({
+    serverInfo: { name: 'ok', apiToken: 'abc123', nested: { Authorization: 'Bearer zzz', client_secret: { value: 'v' }, Headers: { a: 'b' } }, Headers: { 'X-Key': 'k' } },
+    capabilities: { password: 'hunter2', experimental: { sessionCookie: 'sid=1' }, maxTokens: 5 },
+    HEADERS: { a: 'b' }, Environment: { A: 'b' }, ENV: { A: 'b' },
+    instructions: `password: hunter2\nx-api-key: abc\nCookie: sid=abc; theme=dark\nSet-Cookie: sid=abc; HttpOnly\nmy_token=abc\nauth ${jwt}\nkey ${akia}\n${pem}\ndone`,
+    endpoint: 'https://app.example.com/cb?x=1#access_token=SECRETVAL&state=ok',
+    tools: [{ name: 'get_token', description: 'Returns the token: see docs', inputSchema: { type: 'object', properties: { token: { type: 'string' }, env: { type: 'string' } } } }],
+    toolHashes: { get_token: 'sha256:aaa', password_reset: 'sha256:bbb' },
+  });
+  assert.equal(r.serverInfo.name, 'ok');
+  assert.equal(r.serverInfo.apiToken, '[REDACTED]');
+  assert.equal(r.serverInfo.nested.Authorization, '[REDACTED]');
+  assert.equal(r.serverInfo.nested.client_secret, '[REDACTED]');
+  assert.equal('Headers' in r.serverInfo.nested || 'Headers' in r.serverInfo, false);
+  assert.equal(r.capabilities.password, '[REDACTED]');
+  assert.equal(r.capabilities.experimental.sessionCookie, '[REDACTED]');
+  assert.equal(r.capabilities.maxTokens, 5, 'a number is not a secret');
+  for (const k of ['HEADERS', 'Environment', 'ENV']) assert.equal(k in r, false, k);
+  for (const bad of ['hunter2', 'abc\n', 'sid=abc', 'my_token=abc', jwt, akia, 'MIIEvQ', 'SECRETVAL']) assert.ok(!JSON.stringify(r).includes(bad.trim()), bad);
+  assert.match(r.instructions, /Cookie: \[REDACTED\]/);
+  assert.match(r.instructions, /my_token=\[REDACTED\]/);
+  assert.match(r.endpoint, /state=ok/);
+  // data, not field names: tool names and schema properties survive
+  assert.deepEqual(r.toolHashes, { get_token: 'sha256:aaa', password_reset: 'sha256:bbb' });
+  assert.deepEqual(Object.keys(r.tools[0].inputSchema.properties), ['token', 'env']);
+  assert.equal(JSON.stringify(redactRecord(r)), JSON.stringify(r), 'idempotent');
+});

@@ -3,8 +3,9 @@
 // They run before a value is stored or returned. The metadata hash is computed on the raw value, before this.
 
 // Zero-width, bidi controls, soft hyphen, filler characters, variation selectors (except the emoji ones FE0E/FE0F),
-// Braille blank, byte-order mark and the Unicode tag block.
-export const INVISIBLE = /[­͏؜ᅟᅠ឴឵᠋-᠏​-‏‪-‮⁠-⁯⠀ㅤ︀-︍﻿ﾠ￹-￻\u{E0000}-\u{E007F}\u{E0100}-\u{E01EF}]/u;
+// Braille blank, byte-order mark, line/paragraph separators, musical formatting characters, lone surrogates and the
+// Unicode tag block.
+export const INVISIBLE = /[­͏؜ᅟᅠ឴឵᠋-᠏​-‏‪-‮⁠-⁯⠀ㅤ︀-︍﻿ﾠ￹-￻\u2028\u2029\u{1D173}-\u{1D17A}\uD800-\uDFFF\u{E0000}-\u{E007F}\u{E0100}-\u{E01EF}]/u;
 const CONTROL = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/u;
 const UNSAFE_G = new RegExp(`${INVISIBLE.source}|${CONTROL.source}`, 'gu');
 
