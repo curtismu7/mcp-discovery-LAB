@@ -17,7 +17,7 @@ Built and tested:
 - The API, `GET /api/health` (`demo-health/1`), the doctor, Docker files.
 - The web UI (`web/`, React + Vite + React Flow): see [The web UI](#the-web-ui).
 
-Not verified: live mode has not been run against a real host (the tests run the same parsers on fixtures). The Docker image was built and run on OrbStack only: `GET /api/health` and `POST /api/scan` answered on `127.0.0.1:5310`.
+Not verified: live mode has not been run against a real host (the tests run the same parsers on fixtures). The Docker image was built and run on OrbStack only (clean clone): the container reached healthy, `GET /` returned the UI, `GET /api/health` and `POST /api/scan` answered on `127.0.0.1:5310`, a foreign `Host` got 421, a foreign `Origin` got 403, and `docker port` and `lsof` showed the port bound to `127.0.0.1` only. The shelf entry has not been loaded into a running shelf.
 
 Not built: probing of remote servers, stdio servers (they are listed, never started), CI.
 
