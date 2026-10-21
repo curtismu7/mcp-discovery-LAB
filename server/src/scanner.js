@@ -35,6 +35,16 @@ export async function runScan({ host, store, probeOptions = {} } = {}) {
     records.push(redactRecord(record));
   }
   const previous = store ? await store.snapshot() : { records: [] };
+  // Carry the last non-null hash forward so a timeout or a 401 between two answers does not erase the baseline.
+  const before = new Map(previous.records.filter((r) => !r.gone).map((r) => [r.id, r]));
+  for (const record of records) {
+    const prev = before.get(record.id);
+    if (record.toolMetadataHash) { record.lastGoodToolMetadataHash = record.toolMetadataHash; record.lastGoodToolHashes = record.toolHashes; }
+    else if (prev) {
+      const hash = prev.lastGoodToolMetadataHash || prev.toolMetadataHash;
+      if (hash) { record.lastGoodToolMetadataHash = hash; record.lastGoodToolHashes = prev.lastGoodToolMetadataHash ? prev.lastGoodToolHashes : prev.toolHashes; }
+    }
+  }
   const diff = diffScans(previous.records, records);
   const result = { scanId, startedAt, completedAt: new Date().toISOString(), records, diagnostics: discovered.diagnostics, diff };
   if (store) await store.replaceScan(result);

@@ -44,7 +44,11 @@ export function createApp({ runtime, health = createHealth(), webDist = DEFAULT_
   api.post('/scan', wrap(async (req, res) => {
     // A scan takes no parameters. Any body field is refused, so a credential or a target can never be passed in.
     if (req.body && Object.keys(req.body).length) return bad(res, 'POST /api/scan takes no parameters; credentials and targets are never accepted');
-    const result = await runtime.scan();
+    let result;
+    try { result = await runtime.scan(); } catch (e) {
+      if (e?.code === 'scan_queue_full') return res.set('Retry-After', '2').status(429).json({ error: 'scan_queue_full', message: 'a scan is running and another is already queued; try again shortly' });
+      throw e;
+    }
     res.json({ mode: runtime.mode, ...result, summary: summary(result.records) });
   }));
   api.get('/inventory', wrap(async (_req, res) => {

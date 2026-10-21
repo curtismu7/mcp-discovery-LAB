@@ -205,3 +205,12 @@ test('without a built UI, GET / is a JSON 404', async (t) => {
   assert.equal(res.status, 404);
   assert.equal(res.json.error, 'not_found');
 });
+
+test('a third concurrent scan gets 429 with Retry-After', async (t) => {
+  const { port } = await boot(t, 280);
+  const results = await Promise.all([request(port, 'POST', '/api/scan'), request(port, 'POST', '/api/scan'), request(port, 'POST', '/api/scan')]);
+  assert.deepEqual(results.map((r) => r.status).sort(), [200, 200, 429]);
+  const refused = results.find((r) => r.status === 429);
+  assert.equal(refused.json.error, 'scan_queue_full');
+  assert.equal(refused.headers['retry-after'], '2');
+});

@@ -26,3 +26,16 @@ test('a status change without a hash change is a change but not a rug-pull; reta
   assert.equal(d.changed[0].possibleRugPull, false);
   assert.deepEqual(d.gone, []);
 });
+
+test('a hash that goes null (timeout / 401) between two answers does not hide a rug-pull', () => {
+  const s1 = rec('a');                                                         // answered: h1
+  const s2 = rec('a', { status: 'offline', toolMetadataHash: null, toolHashes: {}, lastGoodToolMetadataHash: 'h1', lastGoodToolHashes: { t: 'a' }, probe: { errorCode: 'timeout' } });
+  const s3 = rec('a', { toolMetadataHash: 'h2', toolHashes: { t: 'b' } });
+  assert.equal(diffScans([s1], [s2]).changed[0].possibleRugPull, false);
+  const d = diffScans([s2], [s3]);
+  assert.equal(d.changed[0].possibleRugPull, true);
+  assert.deepEqual(d.changed[0].toolChanges.changed, ['t']);
+  assert.deepEqual(d.changed[0].changes.find((c) => c.field === 'toolMetadataHash'), { field: 'toolMetadataHash', from: 'h1', to: 'h2' });
+  // and the same hash coming back is not a rug-pull
+  assert.equal(diffScans([s2], [rec('a')]).changed[0].possibleRugPull, false);
+});

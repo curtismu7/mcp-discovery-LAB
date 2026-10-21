@@ -10,6 +10,12 @@ function toolChanges(a = {}, b = {}) {
   };
 }
 
+// The baseline for rug-pull detection is the last hash a server answered with, not the previous scan's hash: a
+// timeout or a 401 in between makes the hash null and must not make the next change invisible.
+const baselineOf = (r) => (r.lastGoodToolMetadataHash
+  ? { hash: r.lastGoodToolMetadataHash, tools: r.lastGoodToolHashes }
+  : { hash: r.toolMetadataHash, tools: r.toolHashes });
+
 export function diffScans(previousRecords, nextRecords) {
   const prev = (previousRecords || []).filter((r) => !r.gone);
   const prevById = new Map(prev.map((r) => [r.id, r]));
@@ -23,10 +29,12 @@ export function diffScans(previousRecords, nextRecords) {
     if (before.toolMetadataHash !== record.toolMetadataHash) changes.push({ field: 'toolMetadataHash', from: before.toolMetadataHash, to: record.toolMetadataHash });
     if (before.probe?.errorCode !== record.probe?.errorCode) changes.push({ field: 'errorCode', from: before.probe?.errorCode ?? null, to: record.probe?.errorCode ?? null });
     if (!changes.length) { out.unchanged += 1; continue; }
-    const rugPull = Boolean(before.toolMetadataHash && record.toolMetadataHash && before.toolMetadataHash !== record.toolMetadataHash);
+    const base = baselineOf(before);
+    const rugPull = Boolean(base.hash && record.toolMetadataHash && base.hash !== record.toolMetadataHash);
+    if (rugPull) for (const c of changes) if (c.field === 'toolMetadataHash') c.from = base.hash; // show the last answered hash, not null
     out.changed.push({
       ...brief(record), changes, possibleRugPull: rugPull,
-      ...(rugPull ? { toolChanges: toolChanges(before.toolHashes, record.toolHashes), note: 'possible rug-pull: the tool metadata changed since the previous scan' } : {}),
+      ...(rugPull ? { toolChanges: toolChanges(base.tools, record.toolHashes), note: 'possible rug-pull: the tool metadata changed since the last scan that got an answer' } : {}),
     });
   }
   for (const record of prev) if (!nextById.has(record.id)) out.gone.push(brief(record));
