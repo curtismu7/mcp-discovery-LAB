@@ -52,3 +52,15 @@ test('the Dockerfile runs as non-root and carries no host-inspection tools', () 
   assert.match(df, /^USER node$/m);
   assert.doesNotMatch(df, /docker-cli|lsof|procps/);
 });
+
+test('the Dockerfile is multi-stage, builds web/dist and ships it, and sets no live mode', () => {
+  const df = fs.readFileSync(new URL('../Dockerfile', import.meta.url), 'utf8').split('\n').filter((l) => !/^\s*#/.test(l)).join('\n');
+  assert.match(df, /^FROM .* AS build$/m);
+  assert.match(df, /npm run build -w web/);
+  assert.match(df, /COPY --from=build \/app\/web\/dist web\/dist/);
+  assert.doesNotMatch(df, /MCP_DISCOVERY_LIVE/);
+});
+
+test('the healthcheck uses /api/health', () => {
+  assert.match(code, /\/api\/health/);
+});
