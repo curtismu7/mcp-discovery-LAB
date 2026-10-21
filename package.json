@@ -1,0 +1,20 @@
+{
+  "name": "mcp-discovery",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Read-only MCP discovery demo: finds MCP servers, probes their tool metadata, flags poisoned or changed metadata. Demo mode by default, nothing real is touched.",
+  "license": "MIT",
+  "workspaces": [
+    "server"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "npm start -w server",
+    "test": "npm test -w server && node --test scripts/compose.test.mjs scripts/docs.test.mjs",
+    "doctor": "node scripts/doctor.mjs",
+    "prepare": "git config core.hooksPath .githooks || true"
+  }
+}
