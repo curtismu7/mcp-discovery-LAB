@@ -120,7 +120,7 @@ test('source scan: only live.js starts processes or reads files for the host, an
   const uses = (re) => withText.filter(([, t]) => re.test(t)).map(([f]) => f).sort();
   assert.deepEqual(uses(/node:child_process/), ['live.js']);
   assert.deepEqual(uses(/\bfetch\(|\bfetchImpl\b/), ['probe.js']);
-  assert.deepEqual(uses(/from 'node:fs(\/promises)?'/), ['candidates/clientConfig.js', 'health.js', 'live.js', 'store.js']);
+  assert.deepEqual(uses(/from 'node:fs(\/promises)?'/), ['app.js', 'candidates/clientConfig.js', 'health.js', 'live.js', 'store.js']);
   assert.deepEqual(uses(/import\(['"]\.\/live\.js['"]\)|from '\.\/live\.js'/), ['runtime.js']);
   assert.deepEqual(uses(/node:(net|dgram|tls|https|http2)\b/), ['policy.js'], 'policy.js uses net.isIP only');
   assert.deepEqual(uses(/node:http'/), ['demo/stubs.js']);

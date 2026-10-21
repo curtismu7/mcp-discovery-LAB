@@ -8,9 +8,11 @@ export const SERVER_PORT = 5310;
 export const STUB_BASE_PORT = 5311;
 export const STUB_LAST_PORT = 5319;
 
+const OCTET = '(?:25[0-5]|2[0-4]\\d|1?\\d?\\d)';
+const LOOPBACK_V4 = new RegExp(`^127\\.${OCTET}\\.${OCTET}\\.${OCTET}$`);
 export function isLoopbackHost(host) {
   const h = String(host).toLowerCase().replace(/^\[|\]$/g, '');
-  return h === 'localhost' || h === '::1' || /^127(\.\d{1,3}){3}$/.test(h);
+  return h === 'localhost' || h === '::1' || LOOPBACK_V4.test(h);
 }
 
 export const portInRange = (p) => Number.isInteger(p) && p >= 5300 && p <= 5999;
@@ -26,18 +28,47 @@ export function assertBindAllowed(host, env = process.env) {
   throw new Error(`refusing to bind ${host}: loopback only. Set MCP_DISCOVERY_BIND to opt in (demo mode only).`);
 }
 
-// "127.0.0.1:5310" | "[::1]:5310" | "localhost" -> hostname
-export function hostnameOf(hostHeader) {
-  const h = String(hostHeader || '').trim();
-  if (h.startsWith('[')) return h.slice(1, h.indexOf(']') === -1 ? undefined : h.indexOf(']'));
-  return h.replace(/:\d+$/, '');
+// Strict Host parsing: "localhost", "127.x.y.z" (each octet 0-255) or "[::1]", optionally ":port". Anything else -> null.
+const HOST_RE = /^(localhost|127(?:\.\d{1,3}){3}|\[::1\])(?::(\d{1,5}))?$/i;
+export function parseHost(hostHeader) {
+  const m = HOST_RE.exec(String(hostHeader ?? '').trim());
+  if (!m || !isLoopbackHost(m[1])) return null;
+  if (m[2] !== undefined && Number(m[2]) > 65535) return null;
+  return { hostname: m[1].toLowerCase().replace(/^\[|\]$/g, ''), port: m[2] === undefined ? null : Number(m[2]), host: `${m[1]}${m[2] === undefined ? '' : `:${m[2]}`}`.toLowerCase() };
 }
+// "127.0.0.1:5310" | "[::1]:5310" | "localhost" -> hostname ('' if malformed)
+export const hostnameOf = (hostHeader) => parseHost(hostHeader)?.hostname ?? '';
 
-// Rejects a non-loopback Host header (DNS rebinding): 421 Misdirected Request.
+// Rejects a missing, malformed or non-loopback Host header (DNS rebinding): 421 Misdirected Request.
 export function hostGuard(req, res, next) {
-  if (!req.headers.host || !isLoopbackHost(hostnameOf(req.headers.host))) {
+  if (!req.headers.host || !parseHost(req.headers.host)) {
     return res.status(421).json({ error: 'bad_host', message: 'this server answers loopback Host headers only' });
   }
+  return next();
+}
+
+// CSRF defence for anything that is not a plain read. A browser page on another site can send a "simple" POST to
+// 127.0.0.1 without CORS permission, so the server must refuse it itself:
+//  - Sec-Fetch-Site: cross-site is refused (same-origin, same-site, none are fine);
+//  - an Origin header must be an http loopback origin identical to the Host the request was sent to (this also
+//    covers a published container port and the Vite dev proxy, which forwards Host and Origin unchanged);
+//  - a request with a body must be application/json.
+const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+export function originGuard(req, res, next) {
+  if (READ_METHODS.has(req.method)) return next();
+  const refuse = (status, error, message) => res.status(status).json({ error, message });
+  if (String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') return refuse(403, 'cross_site_refused', 'cross-site requests are refused');
+  const origin = req.headers.origin;
+  if (origin !== undefined) {
+    let u = null;
+    try { u = new URL(origin); } catch { /* refused below */ }
+    const host = parseHost(req.headers.host);
+    const same = u && u.protocol === 'http:' && u.origin !== 'null' && isLoopbackHost(u.hostname) && host
+      && u.host.toLowerCase() === host.host && !u.username && !u.password && u.pathname === '/' && origin === u.origin;
+    if (!same) return refuse(403, 'bad_origin', 'this server accepts same-origin loopback requests only');
+  }
+  const hasBody = Number(req.headers['content-length'] || 0) > 0 || req.headers['transfer-encoding'] !== undefined;
+  if (hasBody && !/^application\/json\s*(;|$)/i.test(req.headers['content-type'] || '')) return refuse(415, 'unsupported_media_type', 'a request body must be application/json');
   return next();
 }
 
