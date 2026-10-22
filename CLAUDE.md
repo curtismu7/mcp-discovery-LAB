@@ -6,7 +6,7 @@ MCP Discovery (tier: Tester, port 5310). A read-only demo that finds MCP servers
 
 ```bash
 npm install
-npm test            # server, web and scripts/*.test.mjs (compose, docs, content-pack, shelf-entry)
+npm test            # server, web and scripts/*.test.mjs (compose, docs, content-pack, shelf-entry, k8s)
 npm run build       # web/dist
 npm run doctor      # node, bind, port range, mode, free ports
 npm run e2e         # real headless Chromium run (Playwright)
@@ -21,6 +21,7 @@ Ports: server 5310 (`MCP_DISCOVERY_PORT`, 5300-5999 only), demo stubs 5311-5315,
 - Loopback only: bind `127.0.0.1`, non-loopback `Host` gets 421, cross-site `Origin` gets 403. Do not widen compose ports.
 - No real network, hosts or tenants. Demo mode must make zero non-loopback connections and never read the host. Live mode (`MCP_DISCOVERY_LIVE=1`) is owner-run only.
 - Server-provided text is inert: render as React text, never HTML; no `eval`/`Function`.
+- `MODE=se-mock` is the hosted build (rule 18): any live setting must stay refused, state must stay per workspace (a new piece of server state needs a per-workspace home and a line in the table in [docs/k8s.md](docs/k8s.md)), and `k8s/deploy.sh` is never run by an agent without `--dry-run` (the first SE deploy is owner-approved).
 - Test scripts use globs (`node --test test/*.test.js`), never a directory (fails on Node 22).
 - Never use `crypto.generateKeyPairSync` or async `generateKeyPair` (aborts on Node 20 in CI).
 - Never parse `node:test` stdout; use the exit code.
@@ -32,7 +33,7 @@ Ports: server 5310 (`MCP_DISCOVERY_PORT`, 5300-5999 only), demo stubs 5311-5315,
 
 ## Where the safety claims are pinned
 
-Table in [docs/safety.md](docs/safety.md). Main files: `server/test/safety.test.js` (demo mode, bind, no process/file/network), `server/test/api.test.js` (Host, CSRF, credentials, 429), `server/test/scanner.test.js` and `probe.test.js` (methods sent, no redirects), `server/test/policy.test.js` and `sanitize.test.js` (redaction, inert text), `scripts/compose.test.mjs` (loopback publish).
+Table in [docs/safety.md](docs/safety.md). Main files: `server/test/safety.test.js` (demo mode, bind, no process/file/network), `server/test/api.test.js` (Host, CSRF, credentials, 429), `server/test/scanner.test.js` and `probe.test.js` (methods sent, no redirects), `server/test/policy.test.js` and `sanitize.test.js` (redaction, inert text), `scripts/compose.test.mjs` (loopback publish), `server/test/hosted.test.js` and `scripts/k8s.test.mjs` (hosted build: refused live settings, workspace isolation, manifests).
 
 ## Shelf and content pack
 

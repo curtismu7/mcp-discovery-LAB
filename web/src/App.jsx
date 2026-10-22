@@ -57,6 +57,7 @@ export default function App() {
   const close = () => { setOpenId(null); opener.current?.focus?.(); };
 
   const live = health?.runtime === "live";
+  const hosted = health?.mode === "se-mock";
   const dark = theme === "dark";
   return (
     <>
@@ -66,12 +67,17 @@ export default function App() {
           <strong>LIVE MODE.</strong> This server is reading this machine: processes, listening ports, Docker and the client configs you listed. Read-only, loopback and stdio only, secrets redacted. Not a demo.
         </div>
       )}
-      {health?.unreachable && <div className="banner warn" role="alert">Cannot reach the discovery API. Is the server running?</div>}
+      {hosted && (
+        <div className="banner hosted" role="status" data-testid="hosted-banner">
+          <strong>HOSTED SIMULATION.</strong> Every server, tool and finding here is synthetic and the real host is never read. Your workspace is private to this browser tab and held in memory only; it is dropped after a while.
+        </div>
+      )}
+      {health?.unreachable && <div className="banner warn" role="alert">Cannot reach the discovery API. Is the server running? <span data-testid="unreachable-sim-note">If this is the hosted build, everything shown here is still a simulation.</span></div>}
       {health && !health.unreachable && health.state !== "ready" && <div className="banner warn" role="alert">Server health is {health.state}. Run <code>npm run doctor</code>.</div>}
       <header className="top">
         <h1>MCP Discovery</h1>
         {health && !health.unreachable && (
-          <span className={`mode ${live ? "mode--live" : "mode--demo"}`} data-testid="mode-badge">{live ? "LIVE" : "DEMO MODE"}<span className="sr-only">{live ? ": reading this machine" : ": offline fixtures and stubs"}</span></span>
+          <span className={`mode ${live ? "mode--live" : "mode--demo"}`} data-testid="mode-badge">{live ? "LIVE" : hosted ? "HOSTED SIMULATION" : "DEMO MODE"}<span className="sr-only">{live ? ": reading this machine" : hosted ? ": hosted, offline fixtures and stubs" : ": offline fixtures and stubs"}</span></span>
         )}
         <nav aria-label="Views">
           <button type="button" className="tab" aria-pressed={view === "inventory"} onClick={() => setView("inventory")}>Inventory</button>

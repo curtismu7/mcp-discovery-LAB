@@ -1,0 +1,10 @@
+# ClusterIP only. The five demo stub servers (5311-5315) listen inside the pod on loopback and are not exposed here.
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-discovery
+  labels: { app: mcp-discovery }
+spec:
+  selector: { app: mcp-discovery }
+  ports:
+    - { name: http, port: 80, targetPort: http }
