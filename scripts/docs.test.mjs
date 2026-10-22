@@ -40,3 +40,10 @@ test('the docs say plainly what is not checked: cookies, hash-uncovered fields, 
   assert.match(read('docs/architecture.md'), /5311-5315/);
   assert.match(read('docs/architecture.md'), /5316-5319 .*not checked/);
 });
+
+test('CLAUDE.md and the talk track exist and mention the port', () => {
+  for (const f of ['CLAUDE.md', 'docs/talk-track.md']) {
+    assert.ok(fs.existsSync(path.join(root, f)), `${f} exists`);
+    assert.match(fs.readFileSync(path.join(root, f), 'utf8'), /5310/, `${f} mentions port 5310`);
+  }
+});
