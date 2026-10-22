@@ -1,0 +1,53 @@
+# MOCK-ONLY hosted build of mcp-discovery for the SE cluster (rule 18). Same image as the standalone, MODE=se-mock:
+# demo stubs and fixtures only, every live setting refused, one isolated in-memory workspace per visitor.
+# No secrets, no tenant ids, no volumes with data. ${IMAGE} and ${SE_HOST} are filled by k8s/deploy.sh from values the
+# OWNER supplies; nothing here names a real host or registry path. The first deploy needs the owner's approval.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-discovery
+  labels: { app: mcp-discovery }
+spec:
+  replicas: 1   # state is in memory and per workspace; more replicas would split a visitor's workspace across pods
+  selector:
+    matchLabels: { app: mcp-discovery }
+  template:
+    metadata:
+      labels: { app: mcp-discovery }
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: app
+          image: ${IMAGE}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: http, containerPort: 5310 }
+          env:
+            - { name: MODE, value: se-mock }
+            - { name: MCP_DISCOVERY_PORT, value: "5310" }
+            - { name: MCP_DISCOVERY_BIND, value: 0.0.0.0 }
+            - { name: MCP_DISCOVERY_PUBLIC_HOST, value: ${SE_HOST} }
+          # The app answers loopback Host headers and the public host only; kubelet probes send the pod IP, so set Host.
+          readinessProbe:
+            httpGet: { path: /api/health, port: http, httpHeaders: [{ name: Host, value: "127.0.0.1:5310" }] }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /api/health, port: http, httpHeaders: [{ name: Host, value: "127.0.0.1:5310" }] }
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 50m, memory: 96Mi }
+            limits: { cpu: 500m, memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - { name: tmp, emptyDir: { sizeLimit: 16Mi } }

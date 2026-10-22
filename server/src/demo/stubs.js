@@ -1,9 +1,11 @@
 // In-process STUB MCP servers on loopback ports 5311-5319. They are the only things demo mode ever probes.
 // They speak just enough JSON-RPC (server/discover -> method not found, initialize, notifications, tools/list).
-// They never read a request header, so they could not use a credential even if one were sent; the auth stub only
-// counts whether one arrived.
+// They never use a credential even if one is sent; the auth stub only counts whether one arrived.
+// Per-visitor state (se-mock build): the one header they read is X-Demo-Workspace, a label the probe sets only for a
+// hosted workspace. Each workspace has its own counters, so one visitor's scans never advance another's rug-pull.
 import http from 'node:http';
 import { STUB_BASE_PORT } from '../safety.js';
+import { DEFAULT_WORKSPACE, isWorkspaceId } from '../workspaces.js';
 
 const NO_ARGS = { type: 'object', properties: {}, additionalProperties: false };
 
@@ -37,8 +39,19 @@ function readJson(req) {
 }
 
 function makeStub(def, host) {
-  const state = { toolsListCalls: 0, hits: 0, credentialHeaderSeen: false, sockets: new Set() };
+  const fresh = () => ({ toolsListCalls: 0, hits: 0, credentialHeaderSeen: false });
+  const state = { ...fresh(), sockets: new Set() }; // the default workspace
+  const perWorkspace = new Map(); // workspace id -> counters; only ids registered by addWorkspace() get an entry
+  const stateFor = (id) => {
+    if (id === DEFAULT_WORKSPACE) return state;
+    // An id that is not registered (an evicted workspace whose scan is still in flight) gets a throwaway object, so a late
+    // request can never recreate counters that dropWorkspace() already freed.
+    return perWorkspace.get(id) ?? fresh();
+  };
   const server = http.createServer(async (req, res) => {
+    const wsHeader = req.headers['x-demo-workspace'];
+    if (wsHeader !== undefined && !isWorkspaceId(wsHeader)) { req.resume(); res.writeHead(400); return res.end(); }
+    const state = stateFor(wsHeader ?? DEFAULT_WORKSPACE);
     state.hits += 1;
     if (req.headers.authorization || req.headers.cookie || req.headers['x-api-key']) state.credentialHeaderSeen = true;
     if (def.key === 'auth') {
@@ -59,7 +72,7 @@ function makeStub(def, host) {
     return reply(null, { code: -32601, message: 'Method not found' });
   });
   server.on('connection', (s) => { state.sockets.add(s); s.on('close', () => state.sockets.delete(s)); });
-  return { def, server, state, host };
+  return { def, server, state, host, stateFor, addWorkspace: (id) => { if (id !== DEFAULT_WORKSPACE && !perWorkspace.has(id)) perWorkspace.set(id, fresh()); }, dropWorkspace: (id) => perWorkspace.delete(id), workspaceCount: () => perWorkspace.size };
 }
 
 // Starts the stubs and resolves with their endpoints. basePort exists so tests can use a free 53xx-59xx range.
@@ -82,7 +95,12 @@ export async function startStubs({ basePort = STUB_BASE_PORT, host = '127.0.0.1'
     stubs: info,
     byKey: Object.fromEntries(info.map((i) => [i.key, i])),
     ports: new Set(info.map((i) => i.port)),
-    reset() { for (const s of stubs) { s.state.toolsListCalls = 0; s.state.hits = 0; s.state.credentialHeaderSeen = false; } },
+    reset(ws = DEFAULT_WORKSPACE) { for (const s of stubs) { const st = s.stateFor(ws); st.toolsListCalls = 0; st.hits = 0; st.credentialHeaderSeen = false; } },
+    // Counters of one workspace's stub (for tests and docs); the default workspace's are also at byKey[key].state.
+    stateOf: (key, ws = DEFAULT_WORKSPACE) => stubs.find((s) => s.def.key === key)?.stateFor(ws),
+    addWorkspace(ws) { for (const s of stubs) s.addWorkspace(ws); },
+    dropWorkspace(ws) { for (const s of stubs) s.dropWorkspace(ws); },
+    workspaceCount: () => Math.max(...stubs.map((s) => s.workspaceCount())),
     close: () => Promise.all(stubs.map((s) => new Promise((resolve) => {
       for (const sock of s.state.sockets) sock.destroy();
       s.server.close(() => resolve());

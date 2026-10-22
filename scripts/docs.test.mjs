@@ -4,7 +4,7 @@ import path from 'node:path';
 import { test } from 'node:test';
 
 const root = new URL('..', import.meta.url).pathname;
-const docs = ['README.md', 'docs/safety.md', 'docs/architecture.md'];
+const docs = ['README.md', 'docs/safety.md', 'docs/architecture.md', 'docs/k8s.md'];
 
 test('relative links in README and docs resolve to files that exist', () => {
   for (const d of docs) {

@@ -42,10 +42,34 @@ describe("App", () => {
     expect(screen.getByTestId("live-banner")).toHaveAttribute("role", "alert");
     expect(screen.getByTestId("mode-badge")).toHaveTextContent("LIVE");
   });
+  it("shows the hosted and simulated banner on every tab when health says se-mock, and no live banner", async () => {
+    health = { ...demoHealth, mode: "se-mock", hosted: true };
+    render(<App />);
+    const banner = await screen.findByTestId("hosted-banner");
+    expect(banner).toHaveTextContent("HOSTED SIMULATION");
+    expect(banner).toHaveTextContent(/synthetic/);
+    expect(screen.getByTestId("mode-badge")).toHaveTextContent("HOSTED SIMULATION");
+    expect(screen.queryByTestId("live-banner")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Pipeline" }));
+    expect(screen.getByTestId("hosted-banner")).toBeInTheDocument();
+  });
+  it("shows no hosted banner in the local build", async () => {
+    render(<App />);
+    await screen.findByTestId("mode-badge");
+    expect(screen.queryByTestId("hosted-banner")).toBeNull();
+  });
+  it("sends the same workspace id on every request of a tab", async () => {
+    render(<App />);
+    await userEvent.click(screen.getByRole("button", { name: "Scan" }));
+    await waitFor(() => screen.getByTestId("row-mcp-poison"));
+    const ids = new Set(fetch.mock.calls.map(([, init]) => init.headers["X-Workspace-Id"]));
+    expect(ids.size).toBe(1);
+  });
   it("warns when the API is unreachable", async () => {
     globalThis.fetch = vi.fn(async () => { throw new Error("down"); });
     render(<App />);
     expect(await screen.findByText(/Cannot reach the discovery API/)).toBeInTheDocument();
+    expect(screen.getByTestId("unreachable-sim-note")).toHaveTextContent(/hosted build.*simulation/);
   });
 
   it("scan fills the inventory and announces the result in a live region", async () => {
@@ -71,7 +95,9 @@ describe("App", () => {
     await waitFor(() => screen.getByTestId("row-mcp-poison"));
     const [, init] = fetch.mock.calls.find(([u]) => u === "/api/scan");
     expect(init.body).toBeUndefined();
-    expect(Object.keys(init.headers)).toEqual(["Accept"]);
+    expect(Object.keys(init.headers)).toEqual(["Accept", "X-Workspace-Id"]);
+    expect(init.headers["X-Workspace-Id"]).toMatch(/^[a-z0-9][a-z0-9-]{0,31}$/);
+    expect(init.headers.Authorization).toBeUndefined();
   });
   it("reset clears the inventory and the diff", async () => {
     render(<App />);

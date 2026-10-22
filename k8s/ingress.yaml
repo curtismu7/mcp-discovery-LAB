@@ -1,0 +1,13 @@
+# The host is supplied by k8s/deploy.sh from SE_HOST (an SE-cluster host the OWNER names; docs use *.example placeholders).
+# There is deliberately no default. The Host is NOT rewritten: the app accepts exactly this name (MCP_DISCOVERY_PUBLIC_HOST)
+# and loopback, and checks the browser's Origin against it for every write.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mcp-discovery
+spec:
+  rules:
+    - host: ${SE_HOST}
+      http:
+        paths:
+          - { path: /, pathType: Prefix, backend: { service: { name: mcp-discovery, port: { name: http } } } }

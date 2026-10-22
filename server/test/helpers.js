@@ -2,8 +2,8 @@
 import http from 'node:http';
 import net from 'node:net';
 
-export const BASES = { probe: 5420, app: 5500, scanner: 5600, api: 5700, safety: 5800 };
-const SLICE_END = { probe: 5499, app: 5599, scanner: 5699, api: 5799, safety: 5899 };
+export const BASES = { probe: 5420, app: 5500, scanner: 5600, api: 5700, safety: 5800, hosted: 5900 };
+const SLICE_END = { probe: 5499, app: 5599, scanner: 5699, api: 5799, safety: 5899, hosted: 5949 };
 
 const isFree = (port) => new Promise((resolve) => {
   const s = net.createServer();
@@ -11,7 +11,7 @@ const isFree = (port) => new Promise((resolve) => {
   s.listen(port, '127.0.0.1', () => s.close(() => resolve(true)));
 });
 
-// A run of `count` consecutive free loopback ports inside a file's own slice of 5400-5899, so a foreign process
+// A run of `count` consecutive free loopback ports inside a file's own slice of 5400-5949, so a foreign process
 // holding one of the usual ports moves the test along instead of failing it. The search resumes after the last run
 // handed out (and wraps), so a port is not reused right after a test closed a server on it: pooled keep-alive
 // connections to the dead server would otherwise be reused. Ports stay in 5300-5999.

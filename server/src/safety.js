@@ -40,12 +40,19 @@ export function parseHost(hostHeader) {
 export const hostnameOf = (hostHeader) => parseHost(hostHeader)?.hostname ?? '';
 
 // Rejects a missing, malformed or non-loopback Host header (DNS rebinding): 421 Misdirected Request.
-export function hostGuard(req, res, next) {
-  if (!req.headers.host || !parseHost(req.headers.host)) {
-    return res.status(421).json({ error: 'bad_host', message: 'this server answers loopback Host headers only' });
+// publicHost (se-mock only, from MCP_DISCOVERY_PUBLIC_HOST) is the one extra name the ingress serves; null = loopback only.
+const matchesPublic = (hostHeader, publicHost) => {
+  if (!publicHost) return false;
+  const m = /^([a-z0-9.-]+)(?::(\d{1,5}))?$/.exec(String(hostHeader ?? '').toLowerCase());
+  return !!m && m[1] === publicHost && (m[2] === undefined || Number(m[2]) <= 65535);
+};
+export const makeHostGuard = (publicHost = null) => (req, res, next) => {
+  if (!req.headers.host || !(parseHost(req.headers.host) || matchesPublic(req.headers.host, publicHost))) {
+    return res.status(421).json({ error: 'bad_host', message: publicHost ? 'this server answers its configured host and loopback only' : 'this server answers loopback Host headers only' });
   }
   return next();
-}
+};
+export const hostGuard = makeHostGuard();
 
 // CSRF defence for anything that is not a plain read. A browser page on another site can send a "simple" POST to
 // 127.0.0.1 without CORS permission, so the server must refuse it itself:
@@ -54,7 +61,11 @@ export function hostGuard(req, res, next) {
 //    covers a published container port and the Vite dev proxy, which forwards Host and Origin unchanged);
 //  - a request with a body must be application/json.
 const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
-export function originGuard(req, res, next) {
+export const originGuard = makeOriginGuard();
+export function makeOriginGuard(publicHost = null) {
+  return (req, res, next) => checkOrigin(req, res, next, publicHost);
+}
+function checkOrigin(req, res, next, publicHost) {
   if (READ_METHODS.has(req.method)) return next();
   const refuse = (status, error, message) => res.status(status).json({ error, message });
   if (String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') return refuse(403, 'cross_site_refused', 'cross-site requests are refused');
@@ -63,8 +74,12 @@ export function originGuard(req, res, next) {
     let u = null;
     try { u = new URL(origin); } catch { /* refused below */ }
     const host = parseHost(req.headers.host);
-    const same = u && u.protocol === 'http:' && u.origin !== 'null' && isLoopbackHost(u.hostname) && host
+    const loopbackSame = u && u.protocol === 'http:' && u.origin !== 'null' && isLoopbackHost(u.hostname) && host
       && u.host.toLowerCase() === host.host && !u.username && !u.password && u.pathname === '/' && origin === u.origin;
+    // Hosted: the page is served at https://<publicHost>; its writes carry that exact origin and the same Host.
+    const publicSame = !!publicHost && u && ['https:', 'http:'].includes(u.protocol) && !u.username && !u.password && u.pathname === '/' && origin === u.origin
+      && u.hostname === publicHost && String(req.headers.host ?? '').toLowerCase() === u.host;
+    const same = loopbackSame || publicSame;
     if (!same) return refuse(403, 'bad_origin', 'this server accepts same-origin loopback requests only');
   }
   const hasBody = Number(req.headers['content-length'] || 0) > 0 || req.headers['transfer-encoding'] !== undefined;

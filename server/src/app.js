@@ -6,7 +6,9 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { createHealth } from './health.js';
 import { createRuntime } from './runtime.js';
-import { assertBindAllowed, bindHost, credentialGuard, hostGuard, originGuard, serverPort } from './safety.js';
+import { assertBindAllowed, bindHost, credentialGuard, makeHostGuard, makeOriginGuard, serverPort } from './safety.js';
+import { DEFAULT_WORKSPACE, isWorkspaceId } from './workspaces.js';
+import { assertSeMockClean, modeFrom, publicHostFrom } from './config.js';
 
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 const bad = (res, message, status = 400) => res.status(status).json({ error: status === 404 ? 'not_found' : 'bad_request', message });
@@ -23,11 +25,13 @@ const API_HEADERS = { 'X-Content-Type-Options': 'nosniff', 'Content-Security-Pol
 export const UI_CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 
 // webDist: directory with the built UI (web/dist). null disables static serving; a missing directory serves JSON 404 at /.
-export function createApp({ runtime, health = createHealth(), webDist = DEFAULT_WEB_DIST } = {}) {
+// publicHost: se-mock only, the ingress host name (see config.js). A hosted runtime (runtime.isolated) serves one workspace
+// per X-Workspace-Id; a local runtime ignores that header entirely.
+export function createApp({ runtime, health = createHealth(), webDist = DEFAULT_WEB_DIST, publicHost = null } = {}) {
   const app = express();
   app.disable('x-powered-by');
-  app.use(hostGuard);
-  app.use(originGuard);
+  app.use(makeHostGuard(publicHost));
+  app.use(makeOriginGuard(publicHost));
   app.use((_req, res, next) => { res.set(API_HEADERS); next(); });
   if (webDist && fs.existsSync(path.join(webDist, 'index.html'))) {
     app.use(express.static(webDist, {
@@ -39,31 +43,40 @@ export function createApp({ runtime, health = createHealth(), webDist = DEFAULT_
   const api = express.Router();
   api.use(credentialGuard);
   api.use('/health', health.router);
+  // The workspace this request works in (hosted build only). The id is a label, not a credential; a malformed one is refused.
+  api.use((req, res, next) => {
+    if (!runtime.isolated) { req.rt = runtime; return next(); }
+    const id = req.headers['x-workspace-id'];
+    if (id !== undefined && !isWorkspaceId(id)) return bad(res, 'X-Workspace-Id must be 1-32 characters of a-z, 0-9 and hyphen, starting with a letter or digit');
+    req.workspaceId = id ?? DEFAULT_WORKSPACE;
+    req.rt = runtime.forWorkspace(req.workspaceId);
+    return next();
+  });
   api.use(express.json({ limit: '2kb' }));
 
   api.post('/scan', wrap(async (req, res) => {
     // A scan takes no parameters. Any body field is refused, so a credential or a target can never be passed in.
     if (req.body && Object.keys(req.body).length) return bad(res, 'POST /api/scan takes no parameters; credentials and targets are never accepted');
     let result;
-    try { result = await runtime.scan(); } catch (e) {
+    try { result = await req.rt.scan(); } catch (e) {
       if (e?.code === 'scan_queue_full') return res.set('Retry-After', '2').status(429).json({ error: 'scan_queue_full', message: 'a scan is running and another is already queued; try again shortly' });
       throw e;
     }
-    res.json({ mode: runtime.mode, ...result, summary: summary(result.records) });
+    res.json({ mode: req.rt.mode, ...result, summary: summary(result.records) });
   }));
-  api.get('/inventory', wrap(async (_req, res) => {
-    const snap = await runtime.store.snapshot();
-    res.json({ mode: runtime.mode, ...snap, summary: summary(snap.records) });
+  api.get('/inventory', wrap(async (req, res) => {
+    const snap = await req.rt.store.snapshot();
+    res.json({ mode: req.rt.mode, ...snap, summary: summary(snap.records) });
   }));
   api.get('/inventory/:id', wrap(async (req, res) => {
-    const record = await runtime.store.get(req.params.id);
+    const record = await req.rt.store.get(req.params.id);
     if (!record) return bad(res, 'no such inventory record', 404);
-    res.json({ mode: runtime.mode, record });
+    res.json({ mode: req.rt.mode, record });
   }));
   api.post('/reset', wrap(async (req, res) => {
     if (req.body && Object.keys(req.body).length) return bad(res, 'POST /api/reset takes no parameters');
-    await runtime.reset();
-    res.json({ ok: true, mode: runtime.mode });
+    await req.rt.reset();
+    res.json({ ok: true, mode: req.rt.mode });
   }));
 
   api.use((_req, res) => bad(res, 'no such endpoint', 404));
@@ -82,11 +95,14 @@ export function createApp({ runtime, health = createHealth(), webDist = DEFAULT_
 
 // Boot on `port`. Refuses a non-loopback host unless MCP_DISCOVERY_BIND is set (and never with live mode).
 export async function startHttpServer({ port = serverPort(), host = bindHost(), env = process.env, runtime } = {}) {
+  const deployMode = modeFrom(env); // throws on an unknown MODE
+  if (deployMode === 'se-mock') assertSeMockClean(env);
   assertBindAllowed(host, env);
+  const publicHost = deployMode === 'se-mock' ? publicHostFrom(env) : null;
   const rt = runtime || await createRuntime({ env });
   const health = createHealth({ env });
   return new Promise((resolve, reject) => {
-    const httpServer = createApp({ runtime: rt, health }).listen(port, host);
+    const httpServer = createApp({ runtime: rt, health, publicHost }).listen(port, host);
     httpServer.once('error', async (e) => { health.stop(); await rt.close(); reject(e); });
     httpServer.once('listening', () => {
       const { port: bound } = httpServer.address();

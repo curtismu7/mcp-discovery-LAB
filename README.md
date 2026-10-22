@@ -99,6 +99,10 @@ docker compose down
 
 Multi-stage build (Vite build, then a runtime with production dependencies and `web/dist`). `GET /` returns the UI and `/api/health` is the healthcheck. Demo mode only, Node 22, non-root, read-only filesystem, all capabilities dropped, no host mounts. The server binds `0.0.0.0` inside the container (the image sets `MCP_DISCOVERY_BIND`, the explicit opt-in) and compose publishes the port as `127.0.0.1:PORT:5310`; a test pins that. Do not widen it.
 
+## Hosted mock build (SE cluster)
+
+The same image runs with `MODE=se-mock` as the hosted, simulated build: every live setting is refused (the doctor and startup fail), each visitor gets an isolated in-memory workspace (`X-Workspace-Id`, capped, idle workspaces dropped), and every tab shows a HOSTED SIMULATION banner. Manifests and a deploy script are in `k8s/`; `scripts/k8s.test.mjs` checks them. Nothing is deployed: the first SE deploy needs the owner's approval. Details, the full state list and residual risks: [docs/k8s.md](docs/k8s.md).
+
 ## Demo shelf
 
 [docs/shelf-entry.json](docs/shelf-entry.json) is a registry entry for the SE shelf (`demo-shelf`), catalog id D5 (kind Tester), url `http://localhost:5310`, health `/api/health` (`demo-health/1`). Do not edit the shelf repo: copy the entry into the shelf's git-ignored `.data/demos.local.json` and set `composeFile` to this checkout's absolute path. The shelf's own registry rules are copied into `scripts/lib/shelf-registry-rules.mjs` (not imported) and `npm test` validates the entry against them. The entry was also run once through the shelf's real `validateDemos`, and the pack through the Learning Hub's `validate-pack`; both passed. It was not loaded into a running shelf.
@@ -117,12 +121,13 @@ node scripts/validate-content-pack.mjs [file]
 ## Layout
 
 ```
-server/src/      app, runtime, safety, probe, toolcheck, candidates/, demo/ (stubs, fixtures), live.js
+server/src/      app, runtime, config (MODE), workspaces, safety, probe, toolcheck, candidates/, demo/ (stubs, fixtures), live.js
 server/test/     node:test suites (one netguard helper blocks non-loopback network)
 web/             React UI (src/components, src/lib, src/test), vite.config.js
 scripts/         doctor.mjs, e2e.mjs, build/validate-content-pack.mjs, *.test.mjs, lib/ (shelf rules copy)
 content/         terms.json, stories.json (source of content-pack.json)
-docs/            safety.md, architecture.md
+docs/            safety.md, architecture.md, k8s.md
+k8s/             deployment, service, ingress, deploy.sh (hosted mock build)
 ```
 
 Licence: MIT, see `LICENSE`.

@@ -33,13 +33,14 @@ async function readJson(response, maxBodyBytes) {
   return JSON.parse(body);
 }
 
-async function rpc(endpoint, method, params, { fetchImpl = fetch, signal, maxBodyBytes = MAX_BODY_BYTES } = {}) {
+async function rpc(endpoint, method, params, { fetchImpl = fetch, signal, maxBodyBytes = MAX_BODY_BYTES, workspaceId } = {}) {
   const response = await fetchImpl(endpoint, {
     method: 'POST',
     redirect: 'manual',
     signal,
     // Fixed headers. No credential is ever sent, whatever options are passed.
-    headers: { accept: 'application/json, text/event-stream', 'content-type': 'application/json' },
+    // Only a hosted (se-mock) workspace adds X-Demo-Workspace, a label for the in-process stubs. Never a credential.
+    headers: { accept: 'application/json, text/event-stream', 'content-type': 'application/json', ...(workspaceId ? { 'x-demo-workspace': workspaceId } : {}) },
     body: JSON.stringify({ jsonrpc: '2.0', id: `${Date.now()}-${method}`, method, params }),
   });
   if (response.status >= 300 && response.status < 400) throw new Error('redirect_not_allowed');
