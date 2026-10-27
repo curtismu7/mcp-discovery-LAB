@@ -1,6 +1,6 @@
 # MOCK-ONLY hosted build of mcp-discovery for the SE cluster (rule 18). Same image as the standalone, MODE=se-mock:
 # demo stubs and fixtures only, every live setting refused, one isolated in-memory workspace per visitor.
-# No secrets, no tenant ids, no volumes with data. ${IMAGE} and ${SE_HOST} are filled by k8s/deploy.sh from values the
+# No secrets, no tenant ids, no volumes with data. __IMAGE__ and __SE_HOST__ are filled by k8s/deploy.sh from values the
 # OWNER supplies; nothing here names a real host or registry path. The first deploy needs the owner's approval.
 apiVersion: apps/v1
 kind: Deployment
@@ -23,7 +23,7 @@ spec:
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: app
-          image: ${IMAGE}
+          image: __IMAGE__
           imagePullPolicy: IfNotPresent
           ports:
             - { name: http, containerPort: 5310 }
@@ -31,7 +31,7 @@ spec:
             - { name: MODE, value: se-mock }
             - { name: MCP_DISCOVERY_PORT, value: "5310" }
             - { name: MCP_DISCOVERY_BIND, value: 0.0.0.0 }
-            - { name: MCP_DISCOVERY_PUBLIC_HOST, value: ${SE_HOST} }
+            - { name: MCP_DISCOVERY_PUBLIC_HOST, value: __SE_HOST__ }
           # The app answers loopback Host headers and the public host only; kubelet probes send the pod IP, so set Host.
           readinessProbe:
             httpGet: { path: /api/health, port: http, httpHeaders: [{ name: Host, value: "127.0.0.1:5310" }] }
