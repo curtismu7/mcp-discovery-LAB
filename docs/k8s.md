@@ -58,7 +58,7 @@ In the browser: the theme in `localStorage` (cosmetic) and the workspace id in `
    ```bash
    OWNER_APPROVED=1 NAMESPACE=<ns> IMAGE=registry.example/team/mcp-discovery:<sha> SE_HOST=discovery.se.example k8s/deploy.sh --dry-run
    ```
-4. Deploy (needs `kubectl` pointed at the SE cluster and `envsubst`): the same command without `--dry-run`.
+4. Deploy (needs `kubectl` pointed at the SE cluster): the same command without `--dry-run`.
 5. Verify by content, not by a 200: `GET /api/health` must say `"mode":"se-mock"`, the page must show the HOSTED SIMULATION banner, a Scan must return the demo findings, and a second browser tab must start with an empty inventory. Check the registry manifest and the pod's `imageID` against `IMAGE`.
 
 `deploy.sh` refuses unless `OWNER_APPROVED=1`, a `NAMESPACE` (every kubectl call is namespaced; set `CONTEXT` to pin the cluster context too), an explicit non-`latest`/`HEAD` tag or digest, and a plain lower-case host name. It never builds or pushes.

@@ -15,7 +15,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 [ "${OWNER_APPROVED:-}" = "1" ] || { echo "refusing: the first SE deploy of each app is owner-approved (set OWNER_APPROVED=1)" >&2; exit 2; }
-[ -n "${NAMESPACE:-}" ] || { echo "refusing: set NAMESPACE to the target namespace" >&2; exit 2; }
+[ -n "${NAMESPACE:-}" ] || { echo "refusing: set NAMESPACE explicitly (no default; the SE namespace is an owner decision)" >&2; exit 2; }
 : "${IMAGE:?set IMAGE to the registry image with an explicit tag}" "${SE_HOST:?set SE_HOST to the SE cluster host}"
 case "$IMAGE" in
   *:latest|*:HEAD|*:|*[!A-Za-z0-9._:/@-]*|"") echo "refusing: IMAGE must carry an explicit immutable tag or digest, not latest/HEAD" >&2; exit 2;;
@@ -23,12 +23,17 @@ case "$IMAGE" in
   *) echo "refusing: IMAGE has no tag" >&2; exit 2;;
 esac
 case "$SE_HOST" in *[!a-z0-9.-]*|""|.*|-*|*.|*-) echo "refusing: SE_HOST must be a plain lower-case host name" >&2; exit 2;; esac
-case "$NAMESPACE" in [a-z0-9]*[a-z0-9]|[a-z0-9]) case "$NAMESPACE" in *[!a-z0-9-]*) echo "refusing: NAMESPACE must be a DNS label" >&2; exit 2;; esac;; *) echo "refusing: NAMESPACE must be a DNS label" >&2; exit 2;; esac
+[[ "$NAMESPACE" =~ ^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$ ]] || { echo "refusing: NAMESPACE must be a DNS label" >&2; exit 2; }
 case "${CONTEXT:-x}" in *[!A-Za-z0-9._:/@-]*) echo "refusing: CONTEXT has unexpected characters" >&2; exit 2;; esac
 KUBE=(kubectl --namespace "$NAMESPACE"); [ -z "${CONTEXT:-}" ] || KUBE+=(--context "$CONTEXT")
-command -v envsubst >/dev/null || { echo "refusing: envsubst is required (gettext)" >&2; exit 2; }
-
-render() { IMAGE="$IMAGE" SE_HOST="$SE_HOST" envsubst '${IMAGE} ${SE_HOST}' < "$1"; echo '---'; }
-if [ "${1:-}" = "--dry-run" ]; then render deployment.yaml; render service.yaml; render ingress.yaml; exit 0; fi
-for f in deployment.yaml service.yaml ingress.yaml; do render "$f" | "${KUBE[@]}" apply -f -; done
+# The manifests carry only the literal tokens __IMAGE__ and __SE_HOST__ (no namespace field). Values are validated above,
+# rendered with sed (the allowed sets contain no '|', '&', backslash or newline), and the render fails if any __TOKEN__ is left.
+FILES="deployment.yaml service.yaml ingress.yaml"
+render() { sed -e "s|__IMAGE__|$IMAGE|g" -e "s|__SE_HOST__|$SE_HOST|g" "$1"; echo '---'; }
+rendered="$(for f in $FILES; do render "$f"; done)"
+if left="$(printf '%s\n' "$rendered" | grep -nE '__[A-Z0-9_]+__')"; then
+  echo "refusing: unreplaced placeholder token(s) in the rendered manifests:" >&2; printf '%s\n' "$left" >&2; exit 3
+fi
+if [ "${1:-}" = "--dry-run" ]; then printf '%s\n' "$rendered"; exit 0; fi
+for f in $FILES; do render "$f" | "${KUBE[@]}" apply -f -; done
 "${KUBE[@]}" rollout status deployment/mcp-discovery --timeout=120s
