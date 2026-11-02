@@ -48,6 +48,28 @@ export async function createRuntime({ env = process.env, stubBase = STUB_BASE_PO
   });
 }
 
+// The local build with both sides. Mock is the demo runtime (stubs + fixtures). Real is the live runtime, built ONLY when the owner started
+// the server with MCP_DISCOVERY_LIVE=1: the page can switch between the two, it can never turn live on. Real is the default when it exists,
+// as before.
+export async function createSwitchableRuntime({ env = process.env, stubBase = STUB_BASE_PORT, timeoutMs } = {}) {
+  const demoEnv = { ...env }; delete demoEnv.MCP_DISCOVERY_LIVE;
+  const demo = await createRuntime({ env: demoEnv, stubBase, timeoutMs });
+  let live = null;
+  if (liveEnabled(env)) { try { live = await createRuntime({ env, stubBase, timeoutMs }); } catch (e) { await demo.close(); throw e; } }
+  let source = live ? 'real' : 'mock';
+  const cur = () => (source === 'real' ? live : demo);
+  const rt = {
+    isolated: false, realAvailable: !!live,
+    get mode() { return cur().mode; }, get store() { return cur().store; }, get stubs() { return cur().stubs; },
+    scan: () => cur().scan(), reset: () => cur().reset(),
+    source: () => source,
+    select(next) { if (next === 'real' && !live) return false; source = next; return true; },
+    close: async () => { await demo.close(); if (live) await live.close(); },
+  };
+  rt.forWorkspace = () => rt;
+  return rt;
+}
+
 // The hosted build. live.js is never imported here, so there is no code path to the real host. State that exists per
 // visitor (the "all state" list in docs/k8s.md): the inventory store, the scan queue, and each stub's counters.
 export async function createSeMockRuntime({ env = process.env, stubBase = STUB_BASE_PORT, timeoutMs, max = MAX_WORKSPACES, ttlMs = WORKSPACE_TTL_MS, now = Date.now } = {}) {

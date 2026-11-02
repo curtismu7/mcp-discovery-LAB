@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { createHealth } from './health.js';
-import { createRuntime } from './runtime.js';
+import { createRuntime, createSwitchableRuntime } from './runtime.js';
 import { assertBindAllowed, bindHost, credentialGuard, makeHostGuard, makeOriginGuard, serverPort } from './safety.js';
 import { DEFAULT_WORKSPACE, isWorkspaceId } from './workspaces.js';
 import { assertSeMockClean, modeFrom, publicHostFrom } from './config.js';
@@ -54,6 +54,21 @@ export function createApp({ runtime, health = createHealth(), webDist = DEFAULT_
   });
   api.use(express.json({ limit: '2kb' }));
 
+  // Rule 19: the Mock/Real toggle's API. Mock is the demo; Real is the live scan of this machine, available only when the owner
+  // started the server with MCP_DISCOVERY_LIVE=1 (the page can switch to it and back, never enable it). The hosted build is Mock only.
+  const hosted = runtime.isolated === true;
+  const sourceNow = () => (hosted ? 'mock' : typeof runtime.source === 'function' ? runtime.source() : runtime.mode === 'live' ? 'real' : 'mock');
+  const infoBody = () => ({ mode: hosted ? 'se-mock' : 'local', hosted, source: sourceNow(), realAvailable: !hosted && runtime.realAvailable === true });
+  api.get('/info', (_req, res) => res.json(infoBody()));
+  api.post('/mode', (req, res) => {
+    const b = req.body;
+    if (b === null || typeof b !== 'object' || Array.isArray(b) || Object.keys(b).length !== 1 || !['mock', 'real'].includes(b.source)) return bad(res, 'body must be exactly {source: "mock" or "real"}');
+    if (hosted) return bad(res, 'The hosted build is Mock only and cannot be switched.', 403);
+    if (b.source === 'real' && runtime.realAvailable !== true) return bad(res, 'Real needs the server started with MCP_DISCOVERY_LIVE=1: it then scans this machine (read-only, loopback, standard config paths). Restart it that way, then switch.', 409);
+    if (typeof runtime.select === 'function') runtime.select(b.source);
+    return res.json(infoBody());
+  });
+
   api.post('/scan', wrap(async (req, res) => {
     // A scan takes no parameters. Any body field is refused, so a credential or a target can never be passed in.
     if (req.body && Object.keys(req.body).length) return bad(res, 'POST /api/scan takes no parameters; credentials and targets are never accepted');
@@ -99,8 +114,8 @@ export async function startHttpServer({ port = serverPort(), host = bindHost(), 
   if (deployMode === 'se-mock') assertSeMockClean(env);
   assertBindAllowed(host, env);
   const publicHost = deployMode === 'se-mock' ? publicHostFrom(env) : null;
-  const rt = runtime || await createRuntime({ env });
-  const health = createHealth({ env });
+  const rt = runtime || await (deployMode === 'se-mock' ? createRuntime({ env }) : createSwitchableRuntime({ env }));
+  const health = createHealth({ env, liveNow: typeof rt.source === 'function' ? () => rt.source() === 'real' : null });
   return new Promise((resolve, reject) => {
     const httpServer = createApp({ runtime: rt, health, publicHost }).listen(port, host);
     httpServer.once('error', async (e) => { health.stop(); await rt.close(); reject(e); });

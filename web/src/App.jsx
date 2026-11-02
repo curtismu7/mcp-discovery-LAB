@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { getHealth, getInventory, postReset, postScan } from "./lib/api.js";
+import { getHealth, getInfo, getInventory, postReset, postScan, setMode } from "./lib/api.js";
 import Inventory, { SummaryChips } from "./components/Inventory.jsx";
 import Drawer from "./components/Drawer.jsx";
 import DiffPanel from "./components/DiffPanel.jsx";
 import Pipeline from "./components/Pipeline.jsx";
 import Story from "./components/Story.jsx";
+import ModeToggle from "./components/ModeToggle.jsx";
 
 const safe = (fn, fallback) => { try { return fn(); } catch { return fallback; } };
 const initialTheme = () => safe(() => localStorage.getItem("mcpd-theme"), null)
@@ -14,6 +15,7 @@ export default function App() {
   const [theme, setTheme] = useState(initialTheme);
   const [view, setView] = useState("inventory");
   const [health, setHealth] = useState(null);
+  const [info, setInfo] = useState(null);
   const [snap, setSnap] = useState({ records: [], diff: null, summary: null });
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -28,6 +30,7 @@ export default function App() {
 
   useEffect(() => {
     getHealth().then(setHealth, () => setHealth({ unreachable: true }));
+    getInfo().then(setInfo, () => {});
     getInventory().then(
       (d) => setSnap({ records: d.records, diff: d.records.length ? d.diff : null, summary: d.summary }),
       (e) => setError(`Could not load the inventory: ${e.message}`));
@@ -51,6 +54,18 @@ export default function App() {
       setSnap({ records: [], diff: null, summary: null }); setOpenId(null);
       setMessage("Inventory cleared. The next scan is a new baseline.");
     } catch (e) { setError(`Reset failed: ${e.message}`); } finally { setBusy(false); }
+  }, []);
+
+  // Rule 19: the Mock/Real toggle. Switching changes what every call reads, so health (the LIVE banner) and the inventory are loaded again.
+  const selectMode = useCallback(async (source) => {
+    setBusy(true); setError("");
+    try {
+      setInfo(await setMode(source));
+      setOpenId(null);
+      const [h, d] = await Promise.all([getHealth(), getInventory()]);
+      setHealth(h); setSnap({ records: d.records, diff: d.records.length ? d.diff : null, summary: d.summary });
+      setMessage(`Mode: ${source === "real" ? "Real" : "Mock"}.`);
+    } catch (e) { setError(`Could not switch mode: ${e.message}`); } finally { setBusy(false); }
   }, []);
 
   const open = (id, el) => { opener.current = el; setOpenId(id); };
@@ -79,6 +94,7 @@ export default function App() {
         {health && !health.unreachable && (
           <span className={`mode ${live ? "mode--live" : "mode--demo"}`} data-testid="mode-badge">{live ? "LIVE" : hosted ? "HOSTED SIMULATION" : "DEMO MODE"}<span className="sr-only">{live ? ": reading this machine" : hosted ? ": hosted, offline fixtures and stubs" : ": offline fixtures and stubs"}</span></span>
         )}
+        <ModeToggle info={info} onSelect={selectMode} busy={busy} />
         <nav aria-label="Views">
           <button type="button" className="tab" aria-pressed={view === "inventory"} onClick={() => setView("inventory")}>Inventory</button>
           <button type="button" className="tab" aria-pressed={view === "pipeline"} onClick={() => setView("pipeline")}>Pipeline</button>

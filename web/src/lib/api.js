@@ -13,8 +13,10 @@ export function workspaceId() {
   } catch { return "default"; }
 }
 
-async function call(path, method = "GET") {
-  const res = await fetch(path, { method, headers: { Accept: "application/json", "X-Workspace-Id": workspaceId() } });
+async function call(path, method = "GET", payload) {
+  const init = { method, headers: { Accept: "application/json", "X-Workspace-Id": workspaceId() } };
+  if (payload !== undefined) { init.headers["Content-Type"] = "application/json"; init.body = JSON.stringify(payload); }
+  const res = await fetch(path, init);
   let body = null;
   try { body = await res.json(); } catch { /* not JSON */ }
   if (!res.ok) {
@@ -26,6 +28,8 @@ async function call(path, method = "GET") {
 }
 
 export const getHealth = () => call("/api/health");
+export const getInfo = () => call("/api/info");
+export const setMode = (source) => call("/api/mode", "POST", { source });
 export const getInventory = () => call("/api/inventory");
 export const getRecord = (id) => call(`/api/inventory/${encodeURIComponent(id)}`);
 export const postScan = () => call("/api/scan", "POST");

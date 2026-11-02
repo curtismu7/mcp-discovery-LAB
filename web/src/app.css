@@ -83,3 +83,7 @@ mark { background: var(--accent-soft); color: var(--text); padding: 0 0.15rem; b
 .fbox.dim { opacity: 0.6; }
 .react-flow__edge.edge-on path.react-flow__edge-path { stroke: var(--accent); stroke-width: 3; }
 .react-flow__edge-textbg { fill: var(--surface); } .react-flow__edge-text { fill: var(--text); font-size: 11px; }
+.mode-toggle { display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+.mode-toggle button { border: 0; border-radius: 0; padding: 3px 12px; background: var(--surface-2); color: var(--text); font-size: 0.85rem; cursor: default; }
+.mode-toggle button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); font-weight: 700; }
+.mode-toggle button:disabled { opacity: 0.6; }
