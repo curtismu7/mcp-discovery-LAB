@@ -63,7 +63,7 @@ export default function App() {
     <>
       <a className="skip" href="#main" onClick={(e) => { e.preventDefault(); document.getElementById("main")?.focus(); }}>Skip to content</a>
       {live && (
-        <div className="banner" role="alert" data-testid="live-banner">
+        <div className="banner" data-state="live" role="alert" data-testid="live-banner">
           <strong>LIVE MODE.</strong> This server is reading this machine: processes, listening ports, Docker and the client configs you listed. Read-only, loopback and stdio only, secrets redacted. Not a demo.
         </div>
       )}
