@@ -10,7 +10,7 @@ import { modeFrom } from './config.js';
 const { version } = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const DEMO = { id: 'mcp-discovery', name: 'MCP Discovery', version };
 
-export function createHealth({ runChecks = defaultChecks, now = () => new Date(), intervalMs = 60_000, env = process.env } = {}) {
+export function createHealth({ runChecks = defaultChecks, now = () => new Date(), intervalMs = 60_000, env = process.env, liveNow = null } = {}) {
   let last = { state: 'unknown', at: null };
   function refresh() {
     try { last = { state: allPassed(runChecks({ env })) ? 'ready' : 'broken', at: now().toISOString() }; }
@@ -26,7 +26,7 @@ export function createHealth({ runChecks = defaultChecks, now = () => new Date()
     // The hosted build also names its mode so the UI can show the "hosted and simulated" banner.
     let seMock = false;
     try { seMock = modeFrom(env) === 'se-mock'; } catch { /* the doctor reports it; health stays local-shaped */ }
-    res.json({ schema: 'demo-health/1', at: last.at || now().toISOString(), state: last.state, runtime: !seMock && liveEnabled(env) ? 'live' : 'offline', ...(seMock ? { mode: 'se-mock', hosted: true } : {}), demo: DEMO });
+    res.json({ schema: 'demo-health/1', at: last.at || now().toISOString(), state: last.state, runtime: !seMock && (liveNow ? liveNow() : liveEnabled(env)) ? 'live' : 'offline', ...(seMock ? { mode: 'se-mock', hosted: true } : {}), demo: DEMO });
   });
   router.all('/', (_req, res) => res.set('Allow', 'GET').status(405).json({ error: 'method_not_allowed' }));
   return { router, refresh, stop: () => clearInterval(timer) };
