@@ -162,9 +162,12 @@ describe("App", () => {
     for (const b of screen.getAllByRole("button")) expect(b).toHaveAccessibleName();
     const ids = Array.from(document.querySelectorAll("[id]")).map((e) => e.id);
     expect(new Set(ids).size).toBe(ids.length);
-    const css = (await import("node:fs")).readFileSync(`${process.cwd()}/src/app.css`, "utf8");
-    expect(css).toMatch(/:focus-visible/);
-    expect(css).toMatch(/prefers-reduced-motion/);
+    // Focus ring and reduced motion now live in the shared stylesheet, which main.jsx loads before app.css.
+    const fs = await import("node:fs");
+    const shared = fs.readFileSync(`${process.cwd()}/src/standalone-ui.css`, "utf8");
+    const css = fs.readFileSync(`${process.cwd()}/src/app.css`, "utf8") + shared;
+    expect(shared).toMatch(/:focus-visible/);
+    expect(shared).toMatch(/prefers-reduced-motion/);
     // No purple: no colour in the stylesheet has a hue between 265 and 320 degrees (greys have no hue).
     for (const [, hex] of css.matchAll(/#([0-9a-f]{6})\b/gi)) {
       const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
