@@ -58,7 +58,7 @@ function Box({ data }) {
       <Handle id="r" type="source" position={Position.Right} />
       <strong>{data.title}</strong>
       <span>{data.sub}</span>
-      {data.count !== undefined && <em>{data.count}</em>}
+      {data.count !== undefined && <span className="fbox__count">{data.count}</span>}
     </div>
   );
 }
