@@ -1,6 +1,8 @@
-# MCP Discovery
+# MCP Discovery LAB
 
 A read-only MCP discovery demo. It finds MCP servers (processes, listeners, Compose services, client configs, remote URLs), probes each reachable one for its tool metadata, flags poisoned metadata, and shows what changed between two scans, including a possible rug-pull (the tool metadata changed after it was first seen).
+
+Repo: https://github.com/ping-sandbox/mcp-discovery-LAB
 
 The server, the API and a web UI exist.
 
