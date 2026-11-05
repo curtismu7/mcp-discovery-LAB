@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import ShelfLink from "./components/ShelfLink.jsx";
 import { getHealth, getInfo, getInventory, postReset, postScan, setMode } from "./lib/api.js";
 import Inventory, { SummaryChips } from "./components/Inventory.jsx";
 import Drawer from "./components/Drawer.jsx";
@@ -100,6 +101,7 @@ export default function App() {
           <button type="button" className="tab" aria-pressed={view === "pipeline"} onClick={() => setView("pipeline")}>Pipeline</button>
         </nav>
         <div className="tools-right">
+            <ShelfLink />
           <button type="button" className="btn primary" onClick={scan} disabled={busy}>Scan</button>
           <button type="button" className="btn" onClick={reset} disabled={busy}>Reset</button>
           <button type="button" className="btn" onClick={() => setTheme(dark ? "light" : "dark")} aria-label={`Switch to ${dark ? "light" : "dark"} theme`}>{dark ? "Light" : "Dark"}</button>
