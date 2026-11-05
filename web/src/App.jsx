@@ -7,6 +7,7 @@ import DiffPanel from "./components/DiffPanel.jsx";
 import Pipeline from "./components/Pipeline.jsx";
 import Story from "./components/Story.jsx";
 import ModeToggle from "./components/ModeToggle.jsx";
+import { workspaceId } from "./lib/api.js";
 
 const safe = (fn, fallback) => { try { return fn(); } catch { return fallback; } };
 const initialTheme = () => safe(() => localStorage.getItem("mcpd-theme"), null)
@@ -101,7 +102,7 @@ export default function App() {
           <button type="button" className="tab" aria-pressed={view === "pipeline"} onClick={() => setView("pipeline")}>Pipeline</button>
         </nav>
         <div className="tools-right">
-            <ShelfLink />
+            <ShelfLink headers={() => ({ "X-Workspace-Id": workspaceId() })} />
           <button type="button" className="btn primary" onClick={scan} disabled={busy}>Scan</button>
           <button type="button" className="btn" onClick={reset} disabled={busy}>Reset</button>
           <button type="button" className="btn" onClick={() => setTheme(dark ? "light" : "dark")} aria-label={`Switch to ${dark ? "light" : "dark"} theme`}>{dark ? "Light" : "Dark"}</button>
