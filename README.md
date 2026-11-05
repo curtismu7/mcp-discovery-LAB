@@ -8,6 +8,35 @@ The server, the API and a web UI exist.
 
 Demo mode is the default: it scans fixtures and five in-process stub MCP servers on loopback, and never reads your machine. Scanning the real host is a separate, explicit opt-in (`MCP_DISCOVERY_LIVE=1`, below).
 
+## Run from a clone
+
+Prerequisites: Node 26. Docker (OrbStack) only for the Docker form.
+
+```
+git clone https://github.com/curtismu7/mcp-discovery-LAB.git
+cd mcp-discovery-LAB
+npm ci
+npm run build
+npm run doctor
+npm start
+```
+
+## Ports, and what to do if the port is taken
+
+```
+Ports: mcp-discovery-LAB listens on 5310 (set with PORT, default 5310).
+Port range for this app: 5310-5315.
+
+If the port is taken:
+1. Find what is using it:
+   lsof -iTCP:5310 -sTCP:LISTEN -n -P
+2. If it is an old copy of this app, stop that process: kill <PID>.
+3. If it is something else, stop it, or start this app on another port:
+   PORT=<other port> npm start
+```
+
+Other variable: `HOST_PORT=5311` (Docker host port). Keep both inside 5310-5315.
+
 ## Status
 
 Built and tested:
