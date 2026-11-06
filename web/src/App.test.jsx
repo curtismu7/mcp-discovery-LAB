@@ -136,12 +136,11 @@ describe("App", () => {
 
   it("toggles dark and light and remembers the choice", async () => {
     render(<App />);
-    const btn = screen.getByRole("button", { name: /Switch to (dark|light) theme/ });
-    const before = document.documentElement.getAttribute("data-theme");
-    await userEvent.click(btn);
+    const sel = screen.getByTestId("theme");
+    await userEvent.selectOptions(sel, "dark");
     const after = document.documentElement.getAttribute("data-theme");
-    expect(after).not.toBe(before);
-    expect(localStorage.getItem("mcpd-theme")).toBe(after);
+    expect(after).toBe("dark");
+    expect(localStorage.getItem("mcpd-theme")).toBe("dark");
   });
   it("switches to the pipeline view", async () => {
     render(<App />);

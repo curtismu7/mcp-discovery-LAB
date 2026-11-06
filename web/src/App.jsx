@@ -26,7 +26,8 @@ export default function App() {
   const opener = useRef(null);
 
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
+    if (theme === "auto" || theme === "") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", theme);
     safe(() => localStorage.setItem("mcpd-theme", theme));
   }, [theme]);
 
@@ -105,7 +106,13 @@ export default function App() {
             <ShelfLink headers={() => ({ "X-Workspace-Id": workspaceId() })} />
           <button type="button" className="btn primary" onClick={scan} disabled={busy}>Scan</button>
           <button type="button" className="btn" onClick={reset} disabled={busy}>Reset</button>
-          <button type="button" className="btn" onClick={() => setTheme(dark ? "light" : "dark")} aria-label={`Switch to ${dark ? "light" : "dark"} theme`}>{dark ? "Light" : "Dark"}</button>
+          <label className="inline">Theme
+            <select value={theme} onChange={(e) => setTheme(e.target.value)} data-testid="theme">
+              <option value="auto">Auto</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </label>
         </div>
       </header>
       <main id="main" tabIndex={-1} className="page">
