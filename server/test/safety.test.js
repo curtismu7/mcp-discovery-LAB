@@ -57,6 +57,67 @@ test('a started server is actually listening on loopback only', async (t) => {
   }
 });
 
+const PROXY_HOST = 'mcp-discovery.local.ping-devops.com';
+const tcpServers = () => process.getActiveResourcesInfo().filter((r) => r === 'TCPServerWrap').length;
+
+test('LAB_ALLOWED_HOSTS: the lab-proxy name is served on any port, other names stay 421, a bad name refuses to start and leaves nothing running', async (t) => {
+  const base = await freeBase('safety', 6);
+  const port = base + 5;
+  const env = { LAB_ALLOWED_HOSTS: `${PROXY_HOST}, Other.Example` };
+  const srv = await startHttpServer({ port, host: '127.0.0.1', env, runtime: await createRuntime({ env: {}, stubBase: base }) });
+  t.after(() => srv.close());
+  for (const host of [`${PROXY_HOST}:5310`, PROXY_HOST, 'MCP-Discovery.Local.Ping-Devops.com:8443', 'other.example', 'OTHER.example:8443', `127.0.0.1:${port}`]) {
+    assert.equal((await request(port, 'GET', '/api/health', { host })).status, 200, host);
+  }
+  for (const host of ['evil.example.com', `${PROXY_HOST}.evil.com`, 'xmcp-discovery.local.ping-devops.example', 'local.ping-devops.com:8443', 'ping-devops.com']) {
+    assert.equal((await request(port, 'GET', '/api/health', { host })).status, 421, host);
+  }
+  // a bad name throws before the runtime (and its stub servers) is created, in local and in se-mock mode
+  const before = tcpServers();
+  await assert.rejects(startHttpServer({ port: base + 4, host: '127.0.0.1', env: { LAB_ALLOWED_HOSTS: 'not a host name' } }), /LAB_ALLOWED_HOSTS: not a host name: not a host name/);
+  await assert.rejects(startHttpServer({ port: base + 4, host: '127.0.0.1', env: { MODE: 'se-mock', LAB_ALLOWED_HOSTS: 'a.example,-bad-' } }), /LAB_ALLOWED_HOSTS: not a host name: -bad-/);
+  assert.equal(tcpServers(), before, 'no server left running');
+  // unset: the default stays loopback only
+  const b2 = await freeBase('safety', 6);
+  const plain = await startHttpServer({ port: b2 + 5, host: '127.0.0.1', env: {}, runtime: await createRuntime({ env: {}, stubBase: b2 }) });
+  t.after(() => plain.close());
+  assert.equal((await request(b2 + 5, 'GET', '/api/health', { host: `${PROXY_HOST}:5310` })).status, 421);
+  assert.equal((await request(b2 + 5, 'GET', '/api/health', { host: `127.0.0.1:${b2 + 5}` })).status, 200);
+});
+
+test('behind the lab-proxy: a write is accepted only with the proxy\'s forwarded origin AND an allowed Host', async (t) => {
+  const base = await freeBase('safety', 6);
+  const port = base + 5;
+  const srv = await startHttpServer({ port, host: '127.0.0.1', env: { LAB_ALLOWED_HOSTS: PROXY_HOST }, runtime: await createRuntime({ env: {}, stubBase: base }) });
+  t.after(() => srv.close());
+  const proxyHost = `${PROXY_HOST}:5310`;
+  const fwd = { 'x-forwarded-host': 'local.ping-devops.com:8443', 'x-forwarded-proto': 'https' };
+  const via = (headers, host = proxyHost) => request(port, 'POST', '/api/reset', { host, headers });
+  // what the browser and the proxy really send for a same-origin POST
+  assert.equal((await via({ ...fwd, origin: 'https://local.ping-devops.com:8443', 'sec-fetch-site': 'same-origin' })).status, 200);
+  assert.equal((await via({ ...fwd, origin: 'https://local.ping-devops.com:8443' })).status, 200);
+  assert.equal((await via({ 'x-forwarded-host': 'local.ping-devops.com:8443', origin: 'https://local.ping-devops.com:8443' })).status, 200, 'proto defaults to https');
+  assert.equal((await via({ ...fwd, origin: 'https://local.ping-devops.com:8443' }, PROXY_HOST.toUpperCase())).status, 200, 'Host without a port, any case');
+  // refused: a foreign origin, a mismatched forwarded host, a wrong scheme, a cross-site fetch, no forwarded host at all
+  for (const headers of [
+    { ...fwd, origin: 'https://evil.example.com' },
+    { ...fwd, origin: 'https://local.ping-devops.com:9999' },
+    { ...fwd, origin: 'http://local.ping-devops.com:8443' },
+    { ...fwd, origin: 'https://local.ping-devops.com:8443', 'sec-fetch-site': 'cross-site' },
+    { origin: 'https://local.ping-devops.com:8443' },
+    { 'x-forwarded-host': 'evil.example.com', 'x-forwarded-proto': 'https', origin: 'https://local.ping-devops.com:8443' },
+    { 'x-forwarded-host': 'local.ping-devops.com:8443', 'x-forwarded-proto': 'ftp', origin: 'ftp://local.ping-devops.com:8443' },
+  ]) assert.equal((await via(headers)).status, 403, JSON.stringify(headers));
+  // the forwarded headers are not believed on a loopback Host: a page that did not come through the proxy cannot use them
+  assert.equal((await via({ ...fwd, origin: 'https://local.ping-devops.com:8443' }, `127.0.0.1:${port}`)).status, 403);
+  assert.equal((await via({ origin: `http://127.0.0.1:${port}` }, `127.0.0.1:${port}`)).status, 200, 'loopback origin still works');
+  // and without LAB_ALLOWED_HOSTS the same request is refused at the Host check
+  const b2 = await freeBase('safety', 6);
+  const plain = await startHttpServer({ port: b2 + 5, host: '127.0.0.1', env: {}, runtime: await createRuntime({ env: {}, stubBase: b2 }) });
+  t.after(() => plain.close());
+  assert.equal((await request(b2 + 5, 'POST', '/api/reset', { host: proxyHost, headers: { ...fwd, origin: 'https://local.ping-devops.com:8443' } })).status, 421);
+});
+
 test('the guard itself works', async () => {
   const g = guardNetwork();
   try {

@@ -12,6 +12,7 @@ services:
       SHELF_URL: ${SHELF_URL:-}
       MCP_DISCOVERY_PORT: "5310"
       MCP_DISCOVERY_BIND: 0.0.0.0
+      LAB_ALLOWED_HOSTS: ${LAB_ALLOWED_HOSTS:-mcp-discovery.local.ping-devops.com}
     read_only: true
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]

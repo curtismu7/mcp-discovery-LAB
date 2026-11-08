@@ -30,3 +30,13 @@ export function publicHostFrom(env = process.env) {
   if (!HOST_NAME_RE.test(h)) throw new Error('MCP_DISCOVERY_PUBLIC_HOST must be a plain lower-case host name');
   return h;
 }
+
+// Extra Host names this app answers to (family standard): LAB_ALLOWED_HOSTS, comma separated host names that point at this Mac,
+// such as the lab-proxy's mcp-discovery.local.ping-devops.com. Loopback always works; unset = loopback only. Works in every mode,
+// independent of MCP_DISCOVERY_PUBLIC_HOST (the single hosted name, se-mock only), which is unchanged.
+const LAB_HOSTNAME = /^(?=.{1,253}$)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/i;
+export function allowedHostsFrom(env = process.env) {
+  const names = String(env.LAB_ALLOWED_HOSTS || '').split(',').map((h) => h.trim().toLowerCase()).filter(Boolean);
+  for (const h of names) if (!LAB_HOSTNAME.test(h)) throw new Error(`LAB_ALLOWED_HOSTS: not a host name: ${h}`);
+  return new Set(names);
+}
