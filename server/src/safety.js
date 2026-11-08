@@ -2,7 +2,8 @@
 //  1. Bind loopback only, unless MCP_DISCOVERY_BIND opts in (the container does), and never together with live mode.
 //  2. Every port this app uses is in 5300-5999.
 //  3. Demo mode is the default. Scanning the real host needs MCP_DISCOVERY_LIVE=1 exactly.
-//  4. Only loopback hosts are Host-header-accepted; no credential header is accepted.
+//  4. Only loopback hosts are Host-header-accepted, plus the names in LAB_ALLOWED_HOSTS (the lab-proxy's name for this app) and
+//     the hosted MCP_DISCOVERY_PUBLIC_HOST; no credential header is accepted.
 
 export const SERVER_PORT = 5310;
 export const STUB_BASE_PORT = 5311;
@@ -46,8 +47,10 @@ const matchesPublic = (hostHeader, publicHost) => {
   const m = /^([a-z0-9.-]+)(?::(\d{1,5}))?$/.exec(String(hostHeader ?? '').toLowerCase());
   return !!m && m[1] === publicHost && (m[2] === undefined || Number(m[2]) <= 65535);
 };
-export const makeHostGuard = (publicHost = null) => (req, res, next) => {
-  if (!req.headers.host || !(parseHost(req.headers.host) || matchesPublic(req.headers.host, publicHost))) {
+// allowedHosts (LAB_ALLOWED_HOSTS) is the set of host names (no port, lower case) the lab-proxy sends in Host; any port is accepted.
+const hostName = (hostHeader) => String(hostHeader ?? '').trim().toLowerCase().replace(/:\d{1,5}$/, '');
+export const makeHostGuard = (publicHost = null, allowedHosts = new Set()) => (req, res, next) => {
+  if (!req.headers.host || !(parseHost(req.headers.host) || matchesPublic(req.headers.host, publicHost) || allowedHosts.has(hostName(req.headers.host)))) {
     return res.status(421).json({ error: 'bad_host', message: publicHost ? 'this server answers its configured host and loopback only' : 'this server answers loopback Host headers only' });
   }
   return next();
@@ -62,10 +65,10 @@ export const hostGuard = makeHostGuard();
 //  - a request with a body must be application/json.
 const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 export const originGuard = makeOriginGuard();
-export function makeOriginGuard(publicHost = null) {
-  return (req, res, next) => checkOrigin(req, res, next, publicHost);
+export function makeOriginGuard(publicHost = null, allowedHosts = new Set()) {
+  return (req, res, next) => checkOrigin(req, res, next, publicHost, allowedHosts);
 }
-function checkOrigin(req, res, next, publicHost) {
+function checkOrigin(req, res, next, publicHost, allowedHosts) {
   if (READ_METHODS.has(req.method)) return next();
   const refuse = (status, error, message) => res.status(status).json({ error, message });
   if (String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') return refuse(403, 'cross_site_refused', 'cross-site requests are refused');
@@ -79,7 +82,13 @@ function checkOrigin(req, res, next, publicHost) {
     // Hosted: the page is served at https://<publicHost>; its writes carry that exact origin and the same Host.
     const publicSame = !!publicHost && u && ['https:', 'http:'].includes(u.protocol) && !u.username && !u.password && u.pathname === '/' && origin === u.origin
       && u.hostname === publicHost && String(req.headers.host ?? '').toLowerCase() === u.host;
-    const same = loopbackSame || publicSame;
+    // Behind the lab-proxy the browser's origin is https://local.ping-devops.com:8443 while Host is this app's own name. The proxy
+    // sets X-Forwarded-Host/-Proto; they are believed only when Host is one of the allowed names, so a request that did not come
+    // through the proxy cannot use them.
+    const xfh = String(req.headers['x-forwarded-host'] || '').toLowerCase();
+    const xfp = String(req.headers['x-forwarded-proto'] || 'https').toLowerCase();
+    const proxied = allowedHosts.has(hostName(req.headers.host)) && xfh !== '' && (xfp === 'https' || xfp === 'http') && origin === `${xfp}://${xfh}`;
+    const same = loopbackSame || publicSame || proxied;
     if (!same) return refuse(403, 'bad_origin', 'this server accepts same-origin loopback requests only');
   }
   const hasBody = Number(req.headers['content-length'] || 0) > 0 || req.headers['transfer-encoding'] !== undefined;

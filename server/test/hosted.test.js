@@ -11,12 +11,12 @@ import { freeBase, request } from './helpers.js';
 
 const SE = { MODE: 'se-mock' };
 
-async function boot(t, { env = SE, publicHost = null, runtimeOptions = {} } = {}) {
+async function boot(t, { env = SE, publicHost = null, allowedHosts = new Set(), runtimeOptions = {} } = {}) {
   const base = await freeBase('hosted', 6);
   const rt = await createRuntime({ env, stubBase: base, ...runtimeOptions });
   const health = createHealth({ env });
   const port = base + 5;
-  const server = createApp({ runtime: rt, health, webDist: null, publicHost }).listen(port, '127.0.0.1');
+  const server = createApp({ runtime: rt, health, webDist: null, publicHost, allowedHosts }).listen(port, '127.0.0.1');
   await new Promise((r) => server.once('listening', r));
   t.after(async () => { health.stop(); server.closeAllConnections(); await new Promise((r) => server.close(r)); await rt.close(); });
   return { port, rt };
@@ -218,6 +218,15 @@ test('hosted Host and Origin: only the configured public host (and loopback) are
   assert.equal((await write(`https://${host}:8443`)).status, 403, 'origin and Host must agree');
   assert.equal((await write('null')).status, 403);
   assert.equal((await request(port, 'POST', '/api/reset', { host, headers: { origin: `https://${host}`, 'sec-fetch-site': 'cross-site' } })).status, 403);
+});
+
+test('MCP_DISCOVERY_PUBLIC_HOST keeps working next to LAB_ALLOWED_HOSTS: each name passes its own Host/Origin rules and not the other\'s', async (t) => {
+  const { port } = await boot(t, { publicHost: 'discovery.se.example', allowedHosts: new Set(['mcp-discovery.local.ping-devops.com']) });
+  const write = (origin, h, extra = {}) => request(port, 'POST', '/api/reset', { host: h, headers: { origin, ...extra } });
+  assert.equal((await write('https://discovery.se.example', 'discovery.se.example')).status, 200);
+  assert.equal((await write('https://local.ping-devops.com:8443', 'mcp-discovery.local.ping-devops.com:5310', { 'x-forwarded-host': 'local.ping-devops.com:8443', 'x-forwarded-proto': 'https' })).status, 200);
+  assert.equal((await write('https://local.ping-devops.com:8443', 'discovery.se.example', { 'x-forwarded-host': 'local.ping-devops.com:8443', 'x-forwarded-proto': 'https' })).status, 403, 'forwarded headers are not believed on the public host');
+  assert.equal((await write('https://discovery.se.example', 'mcp-discovery.local.ping-devops.com:5310')).status, 403, 'the public origin is not valid for the proxy name');
 });
 
 test('without a public host only loopback is accepted, as in the local build', async (t) => {

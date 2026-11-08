@@ -8,7 +8,7 @@ import { createHealth } from './health.js';
 import { createRuntime, createSwitchableRuntime } from './runtime.js';
 import { assertBindAllowed, bindHost, credentialGuard, makeHostGuard, makeOriginGuard, serverPort } from './safety.js';
 import { DEFAULT_WORKSPACE, isWorkspaceId } from './workspaces.js';
-import { assertSeMockClean, modeFrom, publicHostFrom } from './config.js';
+import { allowedHostsFrom, assertSeMockClean, modeFrom, publicHostFrom } from './config.js';
 import { shelfInfo } from './shelfLink.js';
 
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -28,11 +28,11 @@ export const UI_CSP = "default-src 'self'; script-src 'self'; style-src 'self' '
 // webDist: directory with the built UI (web/dist). null disables static serving; a missing directory serves JSON 404 at /.
 // publicHost: se-mock only, the ingress host name (see config.js). A hosted runtime (runtime.isolated) serves one workspace
 // per X-Workspace-Id; a local runtime ignores that header entirely.
-export function createApp({ runtime, health = createHealth(), webDist = DEFAULT_WEB_DIST, publicHost = null } = {}) {
+export function createApp({ runtime, health = createHealth(), webDist = DEFAULT_WEB_DIST, publicHost = null, allowedHosts = new Set() } = {}) {
   const app = express();
   app.disable('x-powered-by');
-  app.use(makeHostGuard(publicHost));
-  app.use(makeOriginGuard(publicHost));
+  app.use(makeHostGuard(publicHost, allowedHosts));
+  app.use(makeOriginGuard(publicHost, allowedHosts));
   app.use((_req, res, next) => { res.set(API_HEADERS); next(); });
   if (webDist && fs.existsSync(path.join(webDist, 'index.html'))) {
     app.use(express.static(webDist, {
@@ -116,10 +116,11 @@ export async function startHttpServer({ port = serverPort(), host = bindHost(), 
   if (deployMode === 'se-mock') assertSeMockClean(env);
   assertBindAllowed(host, env);
   const publicHost = deployMode === 'se-mock' ? publicHostFrom(env) : null;
+  const allowedHosts = allowedHostsFrom(env); // before the stubs start: a bad name must not leave servers running
   const rt = runtime || await (deployMode === 'se-mock' ? createRuntime({ env }) : createSwitchableRuntime({ env }));
   const health = createHealth({ env, liveNow: typeof rt.source === 'function' ? () => rt.source() === 'real' : null });
   return new Promise((resolve, reject) => {
-    const httpServer = createApp({ runtime: rt, health, publicHost }).listen(port, host);
+    const httpServer = createApp({ runtime: rt, health, publicHost, allowedHosts }).listen(port, host);
     httpServer.once('error', async (e) => { health.stop(); await rt.close(); reject(e); });
     httpServer.once('listening', () => {
       const { port: bound } = httpServer.address();
