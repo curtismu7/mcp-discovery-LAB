@@ -95,7 +95,7 @@ try {
   check(hashes.length === 2 && hashes[0] !== hashes[1] && /^[0-9a-f]{12}$/.test(hashes[0]), `hashes differ: ${hashes.join(' -> ')}`);
   check((await page.getByTestId('scan-status').innerText()).includes('Possible rug-pull'), 'rug-pull announced in the live region');
   await shot('2-rugpull-light');
-  await page.getByTestId('theme').selectOption('dark');
+  await page.getByTestId('theme-select').selectOption('dark');
   check((await page.evaluate(() => document.documentElement.dataset.theme)) === 'dark', 'theme toggles to dark');
   await shot('3-rugpull-dark');
 
@@ -125,7 +125,7 @@ try {
   await shot('4-pipeline-dark');
   await page.getByRole('button', { name: 'Reset diagram' }).click();
   check((await page.getByTestId('caption').innerText()).includes('Press Simulate') && (await page.locator('.fbox.on').count()) === 0, 'diagram Reset clears the highlight');
-  await page.getByTestId('theme').selectOption('light');
+  await page.getByTestId('theme-select').selectOption('light');
   await shot('5-pipeline-light');
 
   // Reset
