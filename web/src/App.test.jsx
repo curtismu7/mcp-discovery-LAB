@@ -136,7 +136,7 @@ describe("App", () => {
 
   it("toggles dark and light and remembers the choice", async () => {
     render(<App />);
-    const sel = screen.getByTestId("theme");
+    const sel = screen.getByTestId("theme-select");
     await userEvent.selectOptions(sel, "dark");
     const after = document.documentElement.getAttribute("data-theme");
     expect(after).toBe("dark");

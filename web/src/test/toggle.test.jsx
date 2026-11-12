@@ -51,9 +51,9 @@ describe("Mock/Real toggle (rule 19)", () => {
     });
     render(<App />);
     await waitFor(() => expect(screen.getByTestId("live-banner")).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByTestId("mode-real")).toHaveAttribute("aria-pressed", "true"));
-    fireEvent.click(screen.getByTestId("mode-mock"));
-    await waitFor(() => expect(screen.getByTestId("mode-mock")).toHaveAttribute("aria-pressed", "true"));
+    await waitFor(() => expect(screen.getByTestId("mode-select")).toHaveValue("real"));
+    fireEvent.change(screen.getByTestId("mode-select"), { target: { value: "mock" } });
+    await waitFor(() => expect(screen.getByTestId("mode-select")).toHaveValue("mock"));
     await waitFor(() => expect(screen.queryByTestId("live-banner")).toBeNull());
     expect(calls).toContain("POST /api/mode");
     expect(screen.getByTestId("mode-badge")).toHaveTextContent("DEMO MODE");

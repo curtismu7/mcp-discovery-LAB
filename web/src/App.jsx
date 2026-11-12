@@ -1,13 +1,16 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import fs from "node:fs";
 import ShelfLink from "./components/ShelfLink.jsx";
+import TopMenu, { applyFontSize } from "./top-menu/TopMenu.jsx";
 import { getHealth, getInfo, getInventory, postReset, postScan, setMode } from "./lib/api.js";
 import Inventory, { SummaryChips } from "./components/Inventory.jsx";
 import Drawer from "./components/Drawer.jsx";
 import DiffPanel from "./components/DiffPanel.jsx";
 import Pipeline from "./components/Pipeline.jsx";
 import Story from "./components/Story.jsx";
-import ModeToggle from "./components/ModeToggle.jsx";
 import { workspaceId } from "./lib/api.js";
+
+const LAB_VERSION = (() => { try { return JSON.parse(fs.readFileSync(new URL("../../package.json", import.meta.url), "utf8")).version || null; } catch { return null; } })();
 
 const safe = (fn, fallback) => { try { return fn(); } catch { return fallback; } };
 const initialTheme = () => safe(() => localStorage.getItem("mcpd-theme"), null)
@@ -15,6 +18,7 @@ const initialTheme = () => safe(() => localStorage.getItem("mcpd-theme"), null)
 
 export default function App() {
   const [theme, setTheme] = useState(initialTheme);
+  const [fontStep, setFontStep] = useState(() => { const f = safe(() => localStorage.getItem("mcpd-font"), null); return ["S", "M", "L"].includes(f) ? f : "M"; });
   const [view, setView] = useState("inventory");
   const [health, setHealth] = useState(null);
   const [info, setInfo] = useState(null);
@@ -30,6 +34,7 @@ export default function App() {
     else document.documentElement.setAttribute("data-theme", theme);
     safe(() => localStorage.setItem("mcpd-theme", theme));
   }, [theme]);
+  useEffect(() => { applyFontSize(fontStep); safe(() => localStorage.setItem("mcpd-font", fontStep)); }, [fontStep]);
 
   useEffect(() => {
     getHealth().then(setHealth, () => setHealth({ unreachable: true }));
@@ -97,23 +102,21 @@ export default function App() {
         {health && !health.unreachable && (
           <span className={`mode ${live ? "mode--live" : "mode--demo"}`} data-testid="mode-badge">{live ? "LIVE" : hosted ? "HOSTED SIMULATION" : "DEMO MODE"}<span className="sr-only">{live ? ": reading this machine" : hosted ? ": hosted, offline fixtures and stubs" : ": offline fixtures and stubs"}</span></span>
         )}
-        <ModeToggle info={info} onSelect={selectMode} busy={busy} />
         <nav aria-label="Views">
           <button type="button" className="tab" aria-pressed={view === "inventory"} onClick={() => setView("inventory")}>Inventory</button>
           <button type="button" className="tab" aria-pressed={view === "pipeline"} onClick={() => setView("pipeline")}>Pipeline</button>
         </nav>
-        <div className="tools-right">
-            <ShelfLink headers={() => ({ "X-Workspace-Id": workspaceId() })} />
-          <button type="button" className="btn primary" onClick={scan} disabled={busy}>Scan</button>
-          <button type="button" className="btn" onClick={reset} disabled={busy}>Reset</button>
-          <label className="inline">Theme
-            <select value={theme} onChange={(e) => setTheme(e.target.value)} data-testid="theme">
-              <option value="auto">Auto</option>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-            </select>
-          </label>
-        </div>
+        <TopMenu
+          mode={{ value: info?.source === "real" ? "real" : "mock", onChange: selectMode, realAvailable: info ? (!info.hosted && info.realAvailable === true) : null, realHint: info?.hosted ? "The hosted build is Mock only." : "Real scans this machine (read-only). Start the server with MCP_DISCOVERY_LIVE=1, then switch." }}
+          extra={<button type="button" className="btn primary" onClick={scan} disabled={busy}>Scan</button>}
+          theme={{ value: theme, onChange: setTheme }}
+          fontSize={{ value: fontStep, onChange: setFontStep }}
+          help={{ href: "https://github.com/curtismu7/mcp-discovery-LAB#readme" }}
+          version={LAB_VERSION}
+          onReset={reset}
+        >
+          <ShelfLink headers={() => ({ "X-Workspace-Id": workspaceId() })} />
+        </TopMenu>
       </header>
       <main id="main" tabIndex={-1} className="page">
         <div role="status" aria-live="polite" className="scan-status" data-testid="scan-status">{message}</div>
