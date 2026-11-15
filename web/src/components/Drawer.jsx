@@ -1,9 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import { getRecord } from "../lib/api.js";
 import StatusBadge from "./StatusBadge.jsx";
-import { Untrusted, pretty } from "./Untrusted.jsx";
+import { Untrusted } from "./Untrusted.jsx";
+import { Json } from "./JsonPane.jsx";
 import { shortHash } from "../lib/reveal.js";
 import { label } from "./Inventory.jsx";
+
+// The schema keys the scanner reads for hidden or instruction-like text (server/src/toolcheck.js TEXT_KEYS), plus the one behind the broad-schema finding.
+const SCHEMA_HOT = ["additionalProperties", "description", "title", "default", "const", "example", "examples", "enum"];
 
 // Detail for one record, fetched from /api/inventory/:id. A non-modal dialog: Escape closes it, focus moves to its
 // heading on open and back to the row button on close.
@@ -60,7 +64,7 @@ export default function Drawer({ id, onClose }) {
               <Untrusted block text={t.description} />
               <details>
                 <summary>Input schema (shown as text)</summary>
-                <Untrusted block plain text={pretty(t.inputSchema)} />
+                <Json value={t.inputSchema} label="Input schema" hot={SCHEMA_HOT} />
               </details>
             </section>
           ))}
