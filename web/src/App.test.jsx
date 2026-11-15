@@ -2,6 +2,7 @@ import React from "react";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "./App.jsx";
+import { setJsonView } from "./components/JsonPane.jsx";
 import { RECORDS, SUMMARY, FIRST_DIFF, RUG_DIFF, POISONED } from "./test/fixtures.js";
 
 let health, inv, scans;
@@ -24,6 +25,7 @@ const demoHealth = { schema: "demo-health/1", state: "ready", runtime: "offline"
 const scanBody = (diff) => ({ mode: "demo", records: RECORDS, diff, summary: SUMMARY, diagnostics: [] });
 
 beforeEach(() => {
+  setJsonView("form"); // the Form | JSON choice is shared module state
   health = demoHealth; inv = { records: [], diff: null, summary: { total: 0, byStatus: {} } };
   scans = [scanBody(FIRST_DIFF), scanBody(RUG_DIFF)];
   localStorage.clear(); mockApi();
@@ -132,6 +134,24 @@ describe("App", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(opener).toHaveFocus();
     expect(POISONED.status).toBe("hostile");
+  });
+
+  it("shows a tool's input schema through the shared JSON pane: Form | JSON, important keys marked, markup still inert", async () => {
+    render(<App />);
+    await userEvent.click(screen.getByRole("button", { name: "Scan" }));
+    await waitFor(() => screen.getByTestId("row-mcp-poison"));
+    await userEvent.click(within(screen.getByTestId("row-mcp-poison")).getByRole("button"));
+    const dlg = await screen.findByRole("dialog");
+    const form = await within(dlg).findByRole("group", { name: "Input schema" });
+    expect(within(dlg).getAllByRole("button", { name: /^(Form|JSON)$/ }).map((b) => b.textContent)).toEqual(["Form", "JSON"]);
+    expect(within(form).getByText("<img src=x onerror=alert(1)>")).toBeInTheDocument();
+    expect(form.querySelector('[data-hot="true"]')).not.toBeNull(); // the description key is marked important
+    await userEvent.click(within(dlg).getByRole("button", { name: "JSON" }));
+    const raw = dlg.querySelector("pre.json--raw");
+    expect(raw.textContent).toBe(JSON.stringify(POISONED.tools[0].inputSchema, null, 2));
+    expect(raw.querySelector(".jtok--hot")).not.toBeNull();
+    expect(dlg.querySelector("img")).toBeNull();
+    expect(dlg.querySelector("pre.untrusted--block .jtok")).toBeNull();
   });
 
   it("toggles dark and light and remembers the choice", async () => {

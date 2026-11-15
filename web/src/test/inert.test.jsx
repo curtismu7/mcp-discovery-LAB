@@ -2,6 +2,7 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import { Untrusted } from "../components/Untrusted.jsx";
 import { reveal, hasHidden } from "../lib/reveal.js";
+import { Json, setJsonView } from "../components/JsonPane.jsx";
 
 describe("hidden characters", () => {
   it("reveal turns zero-width, bidi, tag and control characters into [U+XXXX]", () => {
@@ -40,5 +41,21 @@ describe("Untrusted", () => {
   it("plain mode adds no marks", () => {
     render(<Untrusted plain text="<IMPORTANT>x</IMPORTANT>" />);
     expect(document.querySelector("mark")).toBeNull();
+  });
+});
+
+describe("JsonPane uses this lab's hidden-character guard", () => {
+  afterEach(() => setJsonView("form"));
+  it("shows a hidden character in a Form value and in the JSON view as [U+XXXX], and markup as text", () => {
+    const value = { note: "no\u200Btes <img src=x onerror=alert(1)>", tag: "a\u{E0041}b" };
+    const { container } = render(<Json value={value} label="Schema" />);
+    expect(container.textContent).toContain("no[U+200B]tes <img src=x onerror=alert(1)>");
+    expect(container.textContent).toContain("a[U+E0041]b");
+    expect(container.querySelector("img")).toBeNull();
+    setJsonView("raw");
+    const raw = render(<Json value={value} label="Schema" />);
+    expect(raw.container.querySelector("pre.json--raw").textContent).toContain("no[U+200B]tes");
+    expect(raw.container.textContent).not.toMatch(/\u200B|\u{E0041}/u);
+    expect(raw.container.querySelector("img")).toBeNull();
   });
 });
