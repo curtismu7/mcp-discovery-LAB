@@ -105,6 +105,7 @@ export default function Pipeline({ records, diff, theme }) {
             {SPEEDS.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
           </select>
         </label>
+        {/* ui-pattern: allow P9 the one primary on the Pipeline view: the bar's Scan is plain there (App.jsx, conditional on view) */}
         <button type="button" className="btn primary" onClick={simulate} disabled={running}>Simulate</button>
         <button type="button" className="btn" onClick={reset}>Reset diagram</button>
         <span className="muted small">{records?.length ? "Numbers come from the last scan." : "No scan yet, so no numbers."} Drag any box.</span>

@@ -1,6 +1,6 @@
 /* Layout and component rules only. Colours, fonts, controls, themes and dark mode come from standalone-ui.css (loaded first).
    No purple: outcomes are green, amber, red and blue, always with a word beside the colour. */
-.page { max-width: 80rem; margin: 0 auto; padding: 1rem 0; }
+.page { max-width: 1100px; margin: 0 auto; padding: 1rem 0; }
 h1 { margin: 0; font-size: 1.35rem; letter-spacing: 0.01em; }
 h2 { margin: 0 0 0.5rem; font-size: 1.3rem; }
 h3 { margin: 0.5rem 0 0.35rem; font-size: 1.05rem; }
@@ -14,13 +14,26 @@ code, .mono { font-size: 0.85rem; overflow-wrap: anywhere; }
 .banner.hosted { border-left-color: var(--status-info); }
 .banner.warn { border-left-color: var(--status-warn); }
 
-.top { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1.25rem; padding: 0.6rem 0; border-bottom: 1px solid var(--border); position: relative; }
 html { font-size: var(--fs, 16px); }
-.top nav { display: flex; gap: 0.25rem; flex: 1 1 12rem; }
-.tools-right { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-.mode { padding: 0.15rem 0.6rem; border-radius: 4px; font: 700 0.8rem var(--font-mono); letter-spacing: 0.08em; border: 2px solid; }
-.mode--demo { color: var(--status-info); background: var(--surface-2); border-color: var(--status-info); }
-.mode--live { color: var(--on-accent); background: var(--accent); border-color: var(--accent); }
+/* Shell bar (STANDALONE-UI-PATTERNS.md section 1): Core Dark in both themes, Ping Red gradient rule, full-bleed
+   (the -16px cancels the body gutter). position: relative anchors the TopMenu sign-in slot. */
+.shell-bar { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1.25rem; margin: 0 -16px; padding: 0.6rem 1.25rem;
+  background: var(--box-dark); color: var(--on-box); border-bottom: 3px solid transparent; border-image: var(--accent-gradient) 1; }
+.shell-bar h1 { color: var(--on-box); font-size: 1.2rem; }
+.shell-brand { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; font-weight: 700; letter-spacing: 0.02em; }
+.shell-logo { display: inline-grid; place-items: center; width: 1.9rem; height: 1.9rem; border-radius: 4px; background: var(--accent-gradient); color: var(--on-accent); font: 800 0.8rem var(--font-mono); }
+.shell-nav { display: flex; flex-wrap: wrap; gap: 0.25rem; flex: 1 1 12rem; }
+.shell-nav .tab { border-radius: 999px; white-space: nowrap; background: transparent; color: var(--on-box); border: 1px solid var(--on-accent-border); }
+.shell-nav .tab:hover { background: var(--box-grey); }
+.shell-nav .tab[aria-current="page"] { background: var(--accent-gradient); border-color: var(--accent); color: var(--on-accent); font-weight: 700; }
+.shell-bar .top-menu { margin-left: auto; }
+@media (max-width: 600px) {
+  .shell-bar { gap: 0.75rem; padding: 0.6rem 1rem; }
+  .shell-nav { order: 3; flex-basis: 100%; }
+}
+.mode { padding: 0.15rem 0.6rem; border-radius: 999px; font: 700 0.68rem var(--font-mono); letter-spacing: 0.08em; border: 1px solid transparent; }
+.mode--demo { background: var(--accent-gradient); color: var(--on-accent); }
+.mode--live { background: var(--surface-2); color: var(--status-warn); border-color: var(--status-warn); }
 
 .link { all: unset; cursor: pointer; font-weight: 700; color: var(--status-info); text-decoration: underline; text-underline-offset: 3px; }
 .link:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; } /* all: unset above clears the shared ring */

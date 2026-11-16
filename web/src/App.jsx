@@ -97,18 +97,22 @@ export default function App() {
       )}
       {health?.unreachable && <div className="banner warn" role="alert">Cannot reach the discovery API. Is the server running? <span data-testid="unreachable-sim-note">If this is the hosted build, everything shown here is still a simulation.</span></div>}
       {health && !health.unreachable && health.state !== "ready" && <div className="banner warn" role="alert">Server health is {health.state}. Run <code>npm run doctor</code>.</div>}
-      <header className="top">
-        <h1>MCP Discovery</h1>
-        {health && !health.unreachable && (
-          <span className={`mode ${live ? "mode--live" : "mode--demo"}`} data-testid="mode-badge">{live ? "LIVE" : hosted ? "HOSTED SIMULATION" : "DEMO MODE"}<span className="sr-only">{live ? ": reading this machine" : hosted ? ": hosted, offline fixtures and stubs" : ": offline fixtures and stubs"}</span></span>
-        )}
-        <nav aria-label="Views">
-          <button type="button" className="tab" aria-pressed={view === "inventory"} onClick={() => setView("inventory")}>Inventory</button>
-          <button type="button" className="tab" aria-pressed={view === "pipeline"} onClick={() => setView("pipeline")}>Pipeline</button>
+      <header className="shell-bar">
+        <span className="shell-brand">
+          <span className="shell-logo" aria-hidden="true">MD</span>
+          <h1>MCP Discovery</h1>
+          {health && !health.unreachable && (
+            <span className={`mode ${live ? "mode--live" : "mode--demo"}`} data-testid="mode-badge">{live ? "LIVE" : hosted ? "HOSTED SIMULATION" : "DEMO MODE"}<span className="sr-only">{live ? ": reading this machine" : hosted ? ": hosted, offline fixtures and stubs" : ": offline fixtures and stubs"}</span></span>
+          )}
+        </span>
+        <nav className="shell-nav" aria-label="Views">
+          <button type="button" className="tab" aria-pressed={view === "inventory"} aria-current={view === "inventory" ? "page" : undefined} onClick={() => setView("inventory")}>Inventory</button>
+          <button type="button" className="tab" aria-pressed={view === "pipeline"} aria-current={view === "pipeline" ? "page" : undefined} onClick={() => setView("pipeline")}>Pipeline</button>
         </nav>
         <TopMenu
           mode={{ value: info?.source === "real" ? "real" : "mock", onChange: selectMode, realAvailable: info ? (!info.hosted && info.realAvailable === true) : null, realHint: info?.hosted ? "The hosted build is Mock only." : "Real scans this machine (read-only). Start the server with MCP_DISCOVERY_LIVE=1, then switch." }}
-          extra={<button type="button" className="btn primary" onClick={scan} disabled={busy}>Scan</button>}
+          /* ui-pattern: allow P9 Scan is the primary only on the Inventory view; on Pipeline it is plain and Simulate is the one primary */
+          extra={<button type="button" className={view === "inventory" ? "btn primary" : "btn"} onClick={scan} disabled={busy}>Scan</button>}
           theme={{ value: theme, onChange: setTheme }}
           fontSize={{ value: fontStep, onChange: setFontStep }}
           help={{ href: "https://github.com/curtismu7/mcp-discovery-LAB#readme" }}

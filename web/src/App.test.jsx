@@ -167,6 +167,21 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("button", { name: "Pipeline" }));
     expect(screen.getByRole("button", { name: "Simulate" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Pipeline" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Pipeline" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("button", { name: "Inventory" })).not.toHaveAttribute("aria-current");
+    expect(document.querySelectorAll("button.primary")).toHaveLength(1); // one primary per view: Simulate here, Scan stays plain
+    expect(screen.getByRole("button", { name: "Simulate" })).toHaveClass("primary");
+  });
+  it("uses the standard shell bar: brand with the mode badge, pill nav, TopMenu on the right", async () => {
+    render(<App />);
+    const badge = await screen.findByTestId("mode-badge");
+    const bar = screen.getByRole("banner");
+    expect(bar).toHaveClass("shell-bar");
+    expect(badge.closest(".shell-brand")).not.toBeNull();
+    expect(bar.querySelector(".shell-nav [aria-current='page']")).toHaveTextContent("Inventory");
+    expect(bar.querySelector(".top-menu.shell-right")).not.toBeNull();
+    expect(document.querySelectorAll("button.primary")).toHaveLength(1); // on the Inventory view the one primary is Scan
+    expect(screen.getByRole("button", { name: "Scan" })).toHaveClass("primary");
   });
 
   it("a11y basics: skip link, landmarks, every button named, unique ids, no purple tokens", async () => {
