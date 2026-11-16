@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import fs from "node:fs";
 import ShelfLink from "./components/ShelfLink.jsx";
+import VerifyMark from "./components/VerifyMark.jsx";
 import TopMenu, { applyFontSize } from "./top-menu/TopMenu.jsx";
 import { getHealth, getInfo, getInventory, postReset, postScan, setMode } from "./lib/api.js";
 import Inventory, { SummaryChips } from "./components/Inventory.jsx";
@@ -120,6 +121,7 @@ export default function App() {
           onReset={reset}
         >
           <ShelfLink headers={() => ({ "X-Workspace-Id": workspaceId() })} />
+          <VerifyMark id="mcp-discovery" headers={() => ({ "X-Workspace-Id": workspaceId() })} />
         </TopMenu>
       </header>
       <main id="main" tabIndex={-1} className="page">

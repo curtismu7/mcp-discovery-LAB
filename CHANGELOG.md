@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Show this lab's Verified / In progress mark (set on the demo shelf) in the header, beside the Shelf link inside the top menu, through the family's shared `VerifyMark` (vendored byte for byte from AI-DEMO-Standalone `shared/verify-mark`, pinned by `VerifyMark.sha256` / `VerifyMark.css.sha256`). It reads the same `/api/shelf` call as the Shelf link (same `X-Workspace-Id` header) and draws nothing when there is no mark or the shelf cannot be reached.
 - Answer the lab-proxy host name (fixes `bad_host` behind the family lab-proxy): `LAB_ALLOWED_HOSTS` (comma separated host names, loopback always works, unset = loopback only, a bad name refuses to start before the stubs start) and same-origin writes whose `Origin` equals the proxy's `X-Forwarded-Proto://X-Forwarded-Host`, believed only when `Host` is an allowed name. Compose defaults it to this app's proxy name. `MCP_DISCOVERY_PUBLIC_HOST` is unchanged.
 - k8s: hosted mock build for the SE cluster (rule 18). `MODE=se-mock` (default `local`, unchanged) refuses every live setting in the doctor, health and startup, keeps one isolated in-memory workspace per `X-Workspace-Id` (strict charset, capped at 50, 30 minute idle eviction, per-workspace stub counters), accepts the configured `MCP_DISCOVERY_PUBLIC_HOST`, and adds `mode`/`hosted` to the health reply. The UI shows a HOSTED SIMULATION banner on every tab. Manifests, an owner-approved `k8s/deploy.sh` with `--dry-run`, `scripts/k8s.test.mjs`, `docs/k8s.md`. Not deployed.
 
