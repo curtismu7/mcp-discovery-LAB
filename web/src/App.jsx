@@ -3,6 +3,8 @@ import fs from "node:fs";
 import ShelfLink from "./components/ShelfLink.jsx";
 import VerifyMark from "./components/VerifyMark.jsx";
 import TopMenu, { applyFontSize } from "./top-menu/TopMenu.jsx";
+import TalkTrackDialog from "./talk-track/TalkTrackDialog.jsx";
+import talkMd from "../../docs/talk-track.md?raw";
 import { getHealth, getInfo, getInventory, postReset, postScan, setMode } from "./lib/api.js";
 import Inventory, { SummaryChips } from "./components/Inventory.jsx";
 import Drawer from "./components/Drawer.jsx";
@@ -19,6 +21,15 @@ const initialTheme = () => safe(() => localStorage.getItem("mcpd-theme"), null)
 
 export default function App() {
   const [theme, setTheme] = useState(initialTheme);
+  const [talkOpen, setTalkOpen] = useState(false);
+  const talkSteps = (() => {
+    const steps = []; let n = 0;
+    for (const line of talkMd.split("\n")) {
+      const m = line.match(/^\d+\.\s+\*\*(.+?)\.\*\*\s*(.*)$/);
+      if (m) { n += 1; steps.push({ id: `s${n}`, title: m[1], say: m[2] }); }
+    }
+    return steps.length ? steps : [{ id: "s1", title: "Talk track", say: talkMd.slice(0, 600) }];
+  })();
   const [fontStep, setFontStep] = useState(() => { const f = safe(() => localStorage.getItem("mcpd-font"), null); return ["S", "M", "L"].includes(f) ? f : "M"; });
   const [view, setView] = useState("inventory");
   const [health, setHealth] = useState(null);
@@ -115,6 +126,7 @@ export default function App() {
           /* ui-pattern: allow P9 Scan is the primary only on the Inventory view; on Pipeline it is plain and Simulate is the one primary */
           extra={<button type="button" className={view === "inventory" ? "btn primary" : "btn"} onClick={scan} disabled={busy}>Scan</button>}
           theme={{ value: theme, onChange: setTheme }}
+          talkTrack={{ active: talkOpen, onToggle: () => setTalkOpen((v) => !v) }}
           fontSize={{ value: fontStep, onChange: setFontStep }}
           help={{ href: "https://github.com/curtismu7/mcp-discovery-LAB#readme" }}
           version={LAB_VERSION}
@@ -141,6 +153,7 @@ export default function App() {
           </>
         ) : <Pipeline records={snap.records} diff={snap.diff} theme={theme} />}
       </main>
+      <TalkTrackDialog isOpen={talkOpen} onClose={() => setTalkOpen(false)} talk={talkSteps} />
     </>
   );
 }
