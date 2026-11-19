@@ -77,12 +77,14 @@ dt { font-weight: 700; color: var(--muted); } dd { margin: 0; overflow-wrap: any
 mark { background: var(--accent-soft); color: var(--text); padding: 0 0.15rem; border-radius: 3px; text-decoration: underline wavy var(--danger-text); text-underline-offset: 3px; }
 .chip { display: inline-block; padding: 0 0.3em; border: 1px solid var(--danger-text); border-radius: 4px; background: var(--accent-soft); color: var(--danger-text); font: 0.85em var(--font-mono); }
 
-.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr)); gap: 1rem; }
+.cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+@media (max-width: 900px) { .cols { grid-template-columns: minmax(0, 1fr); } }
 .rug { padding: 0.6rem; border: 2px solid var(--danger-text); border-radius: 8px; background: var(--accent-soft); list-style: none; }
 .rug-flag { color: var(--danger-text); letter-spacing: 0.05em; }
 .hashes { display: grid; grid-template-columns: auto 1fr; gap: 0.15rem 0.75rem; margin: 0.3rem 0; }
 
-.story ol { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 0.6rem; list-style: none; padding: 0; margin: 1rem 0; }
+.story ol { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; list-style: none; padding: 0; margin: 1rem 0; }
+@media (max-width: 900px) { .story ol { grid-template-columns: minmax(0, 1fr); } }
 .story li { display: flex; flex-direction: column; gap: 0.2rem; padding: 0.6rem 0.75rem; border: 1px solid var(--border); border-left: 4px solid var(--border); border-radius: 8px; background: var(--surface); font-size: 0.88rem; }
 .story li.now { border-color: var(--accent); border-left-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
 .story li span { color: var(--muted); }
