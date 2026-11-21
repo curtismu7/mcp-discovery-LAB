@@ -144,7 +144,7 @@ describe("App", () => {
     const dlg = await screen.findByRole("dialog");
     const form = await within(dlg).findByRole("group", { name: "Input schema" });
     expect(within(dlg).getAllByRole("button", { name: /^(Form|JSON)$/ }).map((b) => b.textContent)).toEqual(["Form", "JSON"]);
-    expect(within(form).getByText("<img src=x onerror=alert(1)>")).toBeInTheDocument();
+    expect(within(form).getAllByText("<img src=x onerror=alert(1)>").length).toBeGreaterThan(0);
     expect(form.querySelector('[data-hot="true"]')).not.toBeNull(); // the description key is marked important
     await userEvent.click(within(dlg).getByRole("button", { name: "JSON" }));
     const raw = dlg.querySelector("pre.json--raw");

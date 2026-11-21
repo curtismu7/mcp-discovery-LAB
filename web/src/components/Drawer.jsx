@@ -7,7 +7,7 @@ import { shortHash } from "../lib/reveal.js";
 import { label } from "./Inventory.jsx";
 
 // The schema keys the scanner reads for hidden or instruction-like text (server/src/toolcheck.js TEXT_KEYS), plus the one behind the broad-schema finding.
-const SCHEMA_HOT = ["additionalProperties", "description", "title", "default", "const", "example", "examples", "enum"];
+const SCHEMA_HOT = ["additionalProperties", "description"];
 
 // Detail for one record, fetched from /api/inventory/:id. A non-modal dialog: Escape closes it, focus moves to its
 // heading on open and back to the row button on close.
