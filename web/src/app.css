@@ -20,7 +20,7 @@ html { font-size: var(--fs, 16px); }
 .shell-bar { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1.25rem; margin: 0 -16px; padding: 0.6rem 1.25rem;
   background: var(--box-dark); color: var(--on-box); border-bottom: 3px solid transparent; border-image: var(--accent-gradient) 1; }
 .shell-bar h1 { color: var(--on-box); font-size: 1.2rem; }
-.shell-brand { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; font-weight: 700; letter-spacing: 0.02em; }
+.shell-brand  { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; font-weight: 700; letter-spacing: 0.02em; }
 .shell-logo { display: inline-grid; place-items: center; width: 1.9rem; height: 1.9rem; border-radius: 4px; background: var(--accent-gradient); color: var(--on-accent); font: 800 0.8rem var(--font-mono); }
 .shell-nav { display: flex; flex-wrap: wrap; gap: 0.25rem; flex: 1 1 12rem; }
 .shell-nav .tab { border-radius: 999px; white-space: nowrap; background: transparent; color: var(--on-box); border: 1px solid var(--on-accent-border); }
