@@ -145,6 +145,7 @@ describe("App", () => {
 
   it("opens the drawer from the keyboard, shows the record as inert text, Escape returns focus", async () => {
     render(<App />);
+    await userEvent.click(await screen.findByTestId("mode-modal-ok")); // the modal is a dialog too
     await userEvent.click(screen.getByRole("button", { name: "Scan" }));
     await waitFor(() => screen.getByTestId("row-mcp-poison"));
     const opener = within(screen.getByTestId("row-mcp-poison")).getByRole("button");
@@ -165,6 +166,7 @@ describe("App", () => {
 
   it("shows a tool's input schema through the shared JSON pane: Form | JSON, important keys marked, markup still inert", async () => {
     render(<App />);
+    await userEvent.click(await screen.findByTestId("mode-modal-ok")); // the modal is a dialog too
     await userEvent.click(screen.getByRole("button", { name: "Scan" }));
     await waitFor(() => screen.getByTestId("row-mcp-poison"));
     await userEvent.click(within(screen.getByTestId("row-mcp-poison")).getByRole("button"));
