@@ -88,7 +88,7 @@ A scan in demo mode returns ten records: clean (`healthy`), poisoned (`hostile`,
 
 `web/` is a React + Vite workspace (React Flow for the diagram, vitest + Testing Library for tests). Theme tokens, dark and light with a toggle, no purple.
 
-- Header: a `DEMO MODE` badge, and in live mode a `LIVE` badge plus a loud banner, both from `GET /api/health`.
+- Header: a `DEMO MODE` badge, and in live mode a `LIVE` badge. The page also opens on a MOCK or REAL modal (shared `mode-modal`; live reads as REAL, the hosted build has its own MOCK line) that says what is read, from `GET /api/health`.
 - Inventory: servers with source(s), status (`candidate`, `healthy`, `review`, `hostile`, `offline`, `degraded`), confidence, transport, tools and findings. A record opens in a detail drawer (`GET /api/inventory/:id`). **Scan** and **Reset** buttons; the scan result is announced in an `aria-live` region.
 - Scan diff: new, changed and gone since the previous scan. A changed metadata hash is flagged `POSSIBLE RUG-PULL` with the hash before and after.
 - Pipeline: a movable diagram (sources, candidates, probe, inventory, findings) with Simulate, Reset and speed. The step captions use the numbers from the last real scan. A story strip says what each step proves.
@@ -133,7 +133,7 @@ Multi-stage build (Vite build, then a runtime with production dependencies and `
 
 ## Hosted mock build (SE cluster)
 
-The same image runs with `MODE=se-mock` as the hosted, simulated build: every live setting is refused (the doctor and startup fail), each visitor gets an isolated in-memory workspace (`X-Workspace-Id`, capped, idle workspaces dropped), and every tab shows a HOSTED SIMULATION banner. Manifests and a deploy script are in `k8s/`; `scripts/k8s.test.mjs` checks them. Nothing is deployed: the first SE deploy needs the owner's approval. Details, the full state list and residual risks: [docs/k8s.md](docs/k8s.md).
+The same image runs with `MODE=se-mock` as the hosted, simulated build: every live setting is refused (the doctor and startup fail), each visitor gets an isolated in-memory workspace (`X-Workspace-Id`, capped, idle workspaces dropped), and the page opens on a MOCK modal that says HOSTED SIMULATION. Manifests and a deploy script are in `k8s/`; `scripts/k8s.test.mjs` checks them. Nothing is deployed: the first SE deploy needs the owner's approval. Details, the full state list and residual risks: [docs/k8s.md](docs/k8s.md).
 
 ## Demo shelf
 

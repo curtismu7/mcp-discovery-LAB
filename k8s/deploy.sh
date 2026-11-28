@@ -9,7 +9,7 @@
 # in whatever namespace or cluster happens to be current.
 #
 # After the deploy (not done by this script): verify by CONTENT, not 200 (GET /api/health must say mode:se-mock and the page
-# must show the HOSTED SIMULATION banner), check the registry manifest and the pod's imageID match IMAGE, and hand over
+# must show the HOSTED SIMULATION modal), check the registry manifest and the pod's imageID match IMAGE, and hand over
 # the full https:// URL after browser proof.
 set -euo pipefail
 cd "$(dirname "$0")"

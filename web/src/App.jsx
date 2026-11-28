@@ -4,6 +4,7 @@ import ShelfLink from "./components/ShelfLink.jsx";
 import VerifyMark from "./components/VerifyMark.jsx";
 import TopMenu, { applyFontSize } from "./top-menu/TopMenu.jsx";
 import TalkTrackDialog from "./talk-track/TalkTrackDialog.jsx";
+import ModeModal from "./mode-modal/ModeModal.jsx";
 import talkMd from "../../docs/talk-track.md?raw";
 import { getHealth, getInfo, getInventory, postReset, postScan, setMode } from "./lib/api.js";
 import Inventory, { SummaryChips } from "./components/Inventory.jsx";
@@ -14,6 +15,13 @@ import Story from "./components/Story.jsx";
 import { workspaceId } from "./lib/api.js";
 
 const LAB_VERSION = (() => { try { return JSON.parse(fs.readFileSync(new URL("../../package.json", import.meta.url), "utf8")).version || null; } catch { return null; } })();
+
+// The Real-or-mock modal's lines (shared/mode-modal). Real is the owner-run live mode that reads this machine; the hosted build is always mock and has its own line.
+const MODE_LINES = {
+  mock: "Demo mode: offline fixtures and five in-process stub servers on loopback. Nothing on this machine is read.",
+  hosted: "HOSTED SIMULATION. Every server, tool and finding here is synthetic and the real host is never read. Your workspace is private to this browser tab and held in memory only; it is dropped after a while.",
+  real: "LIVE MODE. This server is reading this machine: processes, listening ports, Docker and the client configs you listed. Read-only, loopback and stdio only, secrets redacted. Not a demo.",
+};
 
 const safe = (fn, fallback) => { try { return fn(); } catch { return fallback; } };
 const initialTheme = () => safe(() => localStorage.getItem("mcpd-theme"), null)
@@ -76,7 +84,7 @@ export default function App() {
     } catch (e) { setError(`Reset failed: ${e.message}`); } finally { setBusy(false); }
   }, []);
 
-  // Rule 19: the Mock/Real toggle. Switching changes what every call reads, so health (the LIVE banner) and the inventory are loaded again.
+  // Rule 19: the Mock/Real toggle. Switching changes what every call reads, so health (the LIVE modal) and the inventory are loaded again.
   const selectMode = useCallback(async (source) => {
     setBusy(true); setError("");
     try {
@@ -97,16 +105,6 @@ export default function App() {
   return (
     <>
       <a className="skip" href="#main" onClick={(e) => { e.preventDefault(); document.getElementById("main")?.focus(); }}>Skip to content</a>
-      {live && (
-        <div className="banner" data-state="live" role="alert" data-testid="live-banner">
-          <strong>LIVE MODE.</strong> This server is reading this machine: processes, listening ports, Docker and the client configs you listed. Read-only, loopback and stdio only, secrets redacted. Not a demo.
-        </div>
-      )}
-      {hosted && (
-        <div className="banner hosted" role="status" data-testid="hosted-banner">
-          <strong>HOSTED SIMULATION.</strong> Every server, tool and finding here is synthetic and the real host is never read. Your workspace is private to this browser tab and held in memory only; it is dropped after a while.
-        </div>
-      )}
       {health?.unreachable && <div className="banner warn" role="alert">Cannot reach the discovery API. Is the server running? <span data-testid="unreachable-sim-note">If this is the hosted build, everything shown here is still a simulation.</span></div>}
       {health && !health.unreachable && health.state !== "ready" && <div className="banner warn" role="alert">Server health is {health.state}. Run <code>npm run doctor</code>.</div>}
       <header className="shell-bar">
@@ -154,6 +152,8 @@ export default function App() {
         ) : <Pipeline records={snap.records} diff={snap.diff} theme={theme} />}
       </main>
       <TalkTrackDialog isOpen={talkOpen} onClose={() => setTalkOpen(false)} talk={talkSteps} />
+      {/* Held until health answers, so a hosted or live build never flashes the local demo line first. */}
+      <ModeModal mode={live ? "real" : "mock"} lines={{ mock: hosted ? MODE_LINES.hosted : MODE_LINES.mock, real: MODE_LINES.real }} suppress={!health} storageKey="mcpd-mode" />
     </>
   );
 }
