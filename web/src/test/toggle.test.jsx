@@ -38,7 +38,7 @@ describe("Mock/Real toggle (rule 19)", () => {
     expect(screen.getByTestId("mode-real")).toBeDisabled();
   });
 
-  it("switching Real to Mock tells the server, then reloads health (the LIVE banner goes) and the inventory", async () => {
+  it("switching Real to Mock tells the server, then reloads health (the REAL modal goes, MOCK shows) and the inventory", async () => {
     let source = "real"; const calls = [];
     globalThis.fetch = vi.fn(async (url, init = {}) => {
       const method = init.method || "GET"; calls.push(`${method} ${url}`);
@@ -50,11 +50,14 @@ describe("Mock/Real toggle (rule 19)", () => {
       return { ok: false, status: 404, json: async () => ({}) };
     });
     render(<App />);
-    await waitFor(() => expect(screen.getByTestId("live-banner")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId("mode-modal")).toHaveAttribute("data-mode", "real"));
     await waitFor(() => expect(screen.getByTestId("mode-select")).toHaveValue("real"));
+    fireEvent.click(screen.getByTestId("mode-modal-ok"));
     fireEvent.change(screen.getByTestId("mode-select"), { target: { value: "mock" } });
     await waitFor(() => expect(screen.getByTestId("mode-select")).toHaveValue("mock"));
-    await waitFor(() => expect(screen.queryByTestId("live-banner")).toBeNull());
+    // REAL was dismissed and MOCK was not, so switching to Mock shows the MOCK modal.
+    await waitFor(() => expect(screen.getByTestId("mode-modal")).toHaveAttribute("data-mode", "mock"));
+    expect(screen.queryByTestId("live-banner")).toBeNull();
     expect(calls).toContain("POST /api/mode");
     expect(screen.getByTestId("mode-badge")).toHaveTextContent("DEMO MODE");
   });

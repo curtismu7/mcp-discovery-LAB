@@ -45,7 +45,14 @@ try {
   await page.goto(`${base}/`);
   await page.getByTestId('mode-badge').waitFor();
   check((await page.getByTestId('mode-badge').innerText()).includes('DEMO MODE'), 'header shows the DEMO MODE badge');
-  check((await page.getByTestId('live-banner').count()) === 0, 'no live banner in demo mode');
+  await page.getByTestId('mode-modal').waitFor();
+  check((await page.getByTestId('mode-modal').getAttribute('data-mode')) === 'mock', 'the page opens on the MOCK modal');
+  await page.getByTestId('mode-modal-ok').click();
+  check((await page.getByTestId('mode-modal').count()) === 0, 'Got it closes the modal');
+  check((await page.getByTestId('live-banner').count()) === 0 && (await page.getByTestId('hosted-banner').count()) === 0, 'no live or hosted banner in demo mode');
+  await page.reload();
+  await page.getByTestId('mode-badge').waitFor();
+  check((await page.getByTestId('mode-modal').count()) === 0, 'a reload in the same session does not show the modal again');
   check((await page.locator('.empty').count()) === 1, 'inventory starts empty');
 
   // Keyboard only: skip link first, then Tab to Scan, press Enter.

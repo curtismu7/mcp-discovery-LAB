@@ -32,33 +32,58 @@ beforeEach(() => {
 });
 
 describe("App", () => {
-  it("shows the demo badge and no live banner in demo mode", async () => {
+  it("shows the demo badge and a MOCK modal in demo mode, with no live or hosted banner", async () => {
     render(<App />);
     expect(await screen.findByTestId("mode-badge")).toHaveTextContent("DEMO MODE");
+    expect(await screen.findByTestId("mode-modal")).toHaveAttribute("data-mode", "mock");
+    expect(screen.getByTestId("mode-modal")).toHaveTextContent("MOCK");
+    expect(screen.getByTestId("mode-modal")).toHaveTextContent("Nothing on this machine is read");
     expect(screen.queryByTestId("live-banner")).toBeNull();
+    expect(screen.queryByTestId("hosted-banner")).toBeNull();
   });
-  it("shows a loud live banner and a LIVE badge when health says live", async () => {
-    health = { ...demoHealth, runtime: "live" };
-    render(<App />);
-    expect(await screen.findByTestId("live-banner")).toHaveTextContent("LIVE MODE");
-    expect(screen.getByTestId("live-banner")).toHaveAttribute("role", "alert");
-    expect(screen.getByTestId("mode-badge")).toHaveTextContent("LIVE");
-  });
-  it("shows the hosted and simulated banner on every tab when health says se-mock, and no live banner", async () => {
-    health = { ...demoHealth, mode: "se-mock", hosted: true };
-    render(<App />);
-    const banner = await screen.findByTestId("hosted-banner");
-    expect(banner).toHaveTextContent("HOSTED SIMULATION");
-    expect(banner).toHaveTextContent(/synthetic/);
-    expect(screen.getByTestId("mode-badge")).toHaveTextContent("HOSTED SIMULATION");
-    expect(screen.queryByTestId("live-banner")).toBeNull();
-    await userEvent.click(screen.getByRole("button", { name: "Pipeline" }));
-    expect(screen.getByTestId("hosted-banner")).toBeInTheDocument();
-  });
-  it("shows no hosted banner in the local build", async () => {
+  it("Got it closes the modal, and a re-render in the same session does not show it again", async () => {
+    const { unmount } = render(<App />);
+    await userEvent.click(await screen.findByTestId("mode-modal-ok"));
+    expect(screen.queryByTestId("mode-modal")).toBeNull();
+    unmount();
     render(<App />);
     await screen.findByTestId("mode-badge");
+    expect(screen.queryByTestId("mode-modal")).toBeNull();
+  });
+  it("shows a REAL modal that says this server reads this machine, and a LIVE badge, when health says live; the old live banner is gone", async () => {
+    health = { ...demoHealth, runtime: "live" };
+    render(<App />);
+    const modal = await screen.findByTestId("mode-modal");
+    expect(modal).toHaveAttribute("data-mode", "real");
+    expect(modal).toHaveTextContent("REAL");
+    expect(modal).toHaveTextContent("LIVE MODE");
+    expect(modal).toHaveTextContent("reading this machine");
+    expect(modal).toHaveTextContent("Not a demo");
+    expect(screen.getByTestId("mode-badge")).toHaveTextContent("LIVE");
+    expect(screen.queryByTestId("live-banner")).toBeNull();
+  });
+  it("hosted build: a MOCK modal with the hosted-simulation line on every tab's first load, the badge says so, and no banner", async () => {
+    health = { ...demoHealth, mode: "se-mock", hosted: true };
+    render(<App />);
+    const modal = await screen.findByTestId("mode-modal");
+    expect(modal).toHaveAttribute("data-mode", "mock");
+    expect(modal).toHaveTextContent("HOSTED SIMULATION");
+    expect(modal).toHaveTextContent(/synthetic/);
+    expect(modal).toHaveTextContent("the real host is never read");
+    expect(screen.getByTestId("mode-badge")).toHaveTextContent("HOSTED SIMULATION");
     expect(screen.queryByTestId("hosted-banner")).toBeNull();
+    expect(screen.queryByTestId("live-banner")).toBeNull();
+  });
+  it("the modal waits for /api/health, so a live build never shows the demo line first", async () => {
+    let release; const gate = new Promise((r) => { release = r; });
+    health = { ...demoHealth, runtime: "live" };
+    const base = globalThis.fetch;
+    globalThis.fetch = vi.fn(async (url, init) => { if (url === "/api/health") await gate; return base(url, init); });
+    render(<App />);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.queryByTestId("mode-modal")).toBeNull();
+    release();
+    expect(await screen.findByTestId("mode-modal")).toHaveAttribute("data-mode", "real");
   });
   it("sends the same workspace id on every request of a tab", async () => {
     render(<App />);
@@ -71,6 +96,8 @@ describe("App", () => {
     render(<App />);
     expect(await screen.findByText(/Cannot reach the discovery API/)).toBeInTheDocument();
     expect(screen.getByTestId("unreachable-sim-note")).toHaveTextContent(/hosted build.*simulation/);
+    // The warning banner stays (it is not the simulation paragraph); the modal reads MOCK, the cautious label.
+    expect(screen.getByTestId("mode-modal")).toHaveAttribute("data-mode", "mock");
   });
 
   it("scan fills the inventory and announces the result in a live region", async () => {

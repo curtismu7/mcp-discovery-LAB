@@ -1,6 +1,6 @@
 # Hosted mock build for the SE cluster (rule 18)
 
-MCP Discovery ships in two forms from one image and one Dockerfile. The local standalone (`MODE` unset, or `local`) is what the README describes. The hosted mock build (`MODE=se-mock`) is the same server with every live feature refused, one isolated workspace per visitor, and a "hosted and simulated" banner. This page is the manifest-and-risk side of that build. **Nothing here has been deployed.** The first deploy to the SE cluster needs the owner's approval, and `k8s/deploy.sh` refuses to run without it.
+MCP Discovery ships in two forms from one image and one Dockerfile. The local standalone (`MODE` unset, or `local`) is what the README describes. The hosted mock build (`MODE=se-mock`) is the same server with every live feature refused, one isolated workspace per visitor, and a "hosted and simulated" modal. This page is the manifest-and-risk side of that build. **Nothing here has been deployed.** The first deploy to the SE cluster needs the owner's approval, and `k8s/deploy.sh` refuses to run without it.
 
 ## What the build is
 
@@ -59,7 +59,7 @@ In the browser: the theme in `localStorage` (cosmetic) and the workspace id in `
    OWNER_APPROVED=1 NAMESPACE=<ns> IMAGE=registry.example/team/mcp-discovery:<sha> SE_HOST=discovery.se.example k8s/deploy.sh --dry-run
    ```
 4. Deploy (needs `kubectl` pointed at the SE cluster): the same command without `--dry-run`.
-5. Verify by content, not by a 200: `GET /api/health` must say `"mode":"se-mock"`, the page must show the HOSTED SIMULATION banner, a Scan must return the demo findings, and a second browser tab must start with an empty inventory. Check the registry manifest and the pod's `imageID` against `IMAGE`.
+5. Verify by content, not by a 200: `GET /api/health` must say `"mode":"se-mock"`, the page must open on the HOSTED SIMULATION modal, a Scan must return the demo findings, and a second browser tab must start with an empty inventory. Check the registry manifest and the pod's `imageID` against `IMAGE`.
 
 `deploy.sh` refuses unless `OWNER_APPROVED=1`, a `NAMESPACE` (every kubectl call is namespaced; set `CONTEXT` to pin the cluster context too), an explicit non-`latest`/`HEAD` tag or digest, and a plain lower-case host name. It never builds or pushes.
 
